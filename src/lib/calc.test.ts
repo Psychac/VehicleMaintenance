@@ -26,6 +26,36 @@ describe('fuelEfficiency', () => {
     expect(rows[2].efficiency).toBeCloseTo(20);
   });
 
+  it('uses tank levels when every fill is partial', () => {
+    const at = (odometer: number, remaining: number, litres: number): FuelLog => ({
+      ...fuel(odometer, litres, false),
+      remaining_litres: remaining,
+    });
+    // 3 L left + 10 L added = 13 L; 2 L left at 313 km => 11 L burned.
+    const rows = fuelEfficiency([at(0, 3, 10), at(313, 2, 6.73), at(512, 5, 9)]);
+    expect(rows[0].efficiency).toBeNull();
+    expect(rows[1].distance).toBe(313);
+    expect(rows[1].efficiency).toBeCloseTo(313 / 11);
+    expect(rows[2].efficiency).toBeCloseTo(199 / 3.73); // (2 + 6.73) - 5
+    expect(averageEfficiency(rows)).toBeCloseTo(512 / 14.73);
+  });
+
+  it('falls back to the full-tank method when a tank level is missing', () => {
+    const rows = fuelEfficiency([
+      { ...fuel(1000, 30), remaining_litres: 5 },
+      fuel(1500, 25), // no remaining_litres
+    ]);
+    expect(rows[1].efficiency).toBeCloseTo(20);
+  });
+
+  it('gives no efficiency when the readings imply no fuel was burned', () => {
+    const rows = fuelEfficiency([
+      { ...fuel(0, 10, false), remaining_litres: 1 },
+      { ...fuel(100, 5, false), remaining_litres: 12 },
+    ]);
+    expect(rows[1].efficiency).toBeNull();
+  });
+
   it('averages across stretches weighted by distance', () => {
     const rows = fuelEfficiency([fuel(0, 10), fuel(200, 10), fuel(500, 20)]);
     expect(averageEfficiency(rows)).toBeCloseTo(500 / 30);

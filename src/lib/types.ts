@@ -19,6 +19,8 @@ export interface FuelLog {
   litres: number;
   total_cost: number;
   full_tank: boolean;
+  /** Litres left in the tank just before this fill (e.g. read off the bike's display). */
+  remaining_litres?: number | null;
   station?: string | null;
   notes?: string | null;
   created_at?: string;

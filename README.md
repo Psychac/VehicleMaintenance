@@ -21,7 +21,14 @@ npm run dev        # http://localhost:5173
 npm test
 ```
 
-Without Supabase settings the app runs in **demo mode** and stores data in this browser only.
+By default the app stores data in a **SQLite database on this device** (sqlite-wasm in a worker, persisted in the
+browser's origin-private file system). No account or server is needed. In **Settings → Storage** you can instead
+enter your own Supabase project URL and anon key, so each person can use their own database without a rebuild.
+`VITE_SUPABASE_*` env vars are optional defaults.
+
+Settings → Backup & restore can download the data as a `.sqlite` file, JSON or CSV, and restore from `.sqlite` or JSON
+into either storage (this is how you move data between them). Limits of on-device storage: it's per browser profile,
+clearing site data deletes it, and only one tab can have the database open at a time.
 
 ## 1. Create the database (Supabase, free tier)
 
@@ -92,7 +99,7 @@ sign up again, then use **Settings → Restore from backup…** with your latest
 | Path | Purpose |
 |---|---|
 | `src/lib/calc.ts` | Efficiency, reminder due-status and cost calculations (unit-tested) |
-| `src/lib/db.ts` | Data access: Supabase, or localStorage in demo mode |
+| `src/lib/db.ts` | Data access: Supabase, or on-device SQLite (`src/lib/sqlite/`) |
 | `src/components/` | Screens: Overview, Fuel, Service, Reminders, Reports, Settings |
 | `supabase/schema.sql` | Tables and row-level security |
 | `scripts/backup.mjs` | Local backup script |

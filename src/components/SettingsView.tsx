@@ -1,8 +1,18 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
-import { deleteRow, insertRow, isLocalMode, restoreAll, supabase, updateRow } from '../lib/db';
+import {
+  dataToSqliteFile,
+  deleteRow,
+  insertRow,
+  isLocalMode,
+  restoreAll,
+  sqliteFileToData,
+  supabase,
+  updateRow,
+} from '../lib/db';
 import { numOrNull, strOrNull, today } from '../lib/format';
 import type { AllData, BackupFile, Vehicle } from '../lib/types';
 import Modal from './Modal';
+import StorageSettings from './StorageSettings';
 
 export default function SettingsView({
   data,
@@ -38,19 +48,36 @@ export default function SettingsView({
     download(`vehicle-log-${today()}.csv`, lines.join('\n'), 'text/csv');
   }
 
-  async function importJson(e: ChangeEvent<HTMLInputElement>) {
+  async function exportSqlite() {
+    try {
+      const bytes = await dataToSqliteFile(data);
+      download(`vehicle-log-${today()}.sqlite`, bytes, 'application/vnd.sqlite3');
+    } catch (ex) {
+      setMsg(`Export failed: ${(ex as Error).message}`);
+    }
+  }
+
+  /** Restores a .json backup or a .sqlite database file into the current storage. */
+  async function importFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     try {
-      const parsed = JSON.parse(await file.text()) as BackupFile;
-      if (parsed.app !== 'vehicle-log' || !parsed.data) throw new Error('Not a Vehicle Log backup file.');
-      const counts = Object.entries(parsed.data)
+      let restored: AllData;
+      let when = '';
+      if (/\.json$/i.test(file.name)) {
+        const parsed = JSON.parse(await file.text()) as BackupFile;
+        if (parsed.app !== 'vehicle-log' || !parsed.data) throw new Error('Not a Vehicle Log backup file.');
+        restored = parsed.data;
+        when = ` from ${parsed.exported_at.slice(0, 10)}`;
+      } else {
+        restored = await sqliteFileToData(new Uint8Array(await file.arrayBuffer()));
+      }
+      const counts = Object.entries(restored)
         .map(([k, v]) => `${v.length} ${k.replace('_', ' ')}`)
         .join(', ');
-      if (!window.confirm(`Restore ${counts} from ${parsed.exported_at.slice(0, 10)}? Matching entries are overwritten; nothing is deleted.`))
-        return;
-      await restoreAll(parsed.data);
+      if (!window.confirm(`Restore ${counts}${when}? Matching entries are overwritten; nothing is deleted.`)) return;
+      await restoreAll(restored);
       await reload();
       setMsg('Backup restored.');
     } catch (ex) {
@@ -90,18 +117,24 @@ export default function SettingsView({
         <h2>Backup &amp; restore</h2>
         <p className="muted small">
           {isLocalMode
-            ? 'Demo mode keeps data in this browser only — export regularly.'
+            ? 'Your data is in a SQLite database stored in this browser on this device. Clearing site data deletes it — download a copy regularly.'
             : 'Your data lives in your Supabase database. Export a copy any time, or run the scheduled backup script on your PC (see README).'}
         </p>
         <div className="actions">
+          <button onClick={exportSqlite}>Download database (.sqlite)</button>
           <button onClick={exportJson}>Download backup (JSON)</button>
           <button onClick={exportCsv}>Export spreadsheet (CSV)</button>
           <label className="button">
-            Restore from backup…
-            <input type="file" accept="application/json,.json" hidden onChange={importJson} />
+            Restore from file…
+            <input type="file" accept=".sqlite,.sqlite3,.db,application/json,.json" hidden onChange={importFile} />
           </label>
         </div>
         {msg && <p className="form-msg">{msg}</p>}
+      </section>
+
+      <section className="card">
+        <h2>Storage</h2>
+        <StorageSettings />
       </section>
 
       {!isLocalMode && (
@@ -136,8 +169,8 @@ function csv(values: unknown[]) {
     .join(',');
 }
 
-function download(name: string, content: string, type: string) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
+function download(name: string, content: string | Uint8Array, type: string) {
+  const url = URL.createObjectURL(new Blob([content as BlobPart], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;

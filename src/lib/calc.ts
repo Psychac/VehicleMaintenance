@@ -15,14 +15,18 @@ export interface FuelRow extends FuelLog {
 }
 
 /**
- * Full-tank method: when a full fill-up follows an earlier full fill-up, the
- * distance between them divided by all litres added after the earlier one
- * (partial fills included) is the efficiency for that stretch.
+ * Two ways to get km/L for the stretch ending at a fill-up:
+ * - Tank level: when this and the previous fill both record the litres left before filling, fuel burned
+ *   is (previous remaining + previous litres) - this remaining. Preferred when available, but only as
+ *   accurate as those readings.
+ * - Full-tank method: when a full fill-up follows an earlier full fill-up, the distance between them
+ *   divided by all litres added after the earlier one (partial fills included).
  */
 export function fuelEfficiency(logs: FuelLog[]): FuelRow[] {
   const sorted = [...logs].sort((a, b) => Number(a.odometer) - Number(b.odometer) || a.date.localeCompare(b.date));
   let lastFullOdo: number | null = null;
   let litresSince = 0;
+  let prev: FuelLog | null = null;
   return sorted.map((log) => {
     const odo = Number(log.odometer);
     const litres = Number(log.litres);
@@ -35,6 +39,12 @@ export function fuelEfficiency(logs: FuelLog[]): FuelRow[] {
         efficiency = distance > 0 && litresSince > 0 ? distance / litresSince : null;
       }
     }
+    if (prev && prev.remaining_litres != null && log.remaining_litres != null) {
+      const burned = Number(prev.remaining_litres) + Number(prev.litres) - Number(log.remaining_litres);
+      distance = odo - Number(prev.odometer);
+      efficiency = distance > 0 && burned > 0 ? distance / burned : null;
+    }
+    prev = log;
     if (log.full_tank) {
       lastFullOdo = odo;
       litresSince = 0;

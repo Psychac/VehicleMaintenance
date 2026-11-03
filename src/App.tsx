@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { isLocalMode, listAll, supabase } from './lib/db';
+import { initDb, isLocalMode, listAll, storageStatus, supabase } from './lib/db';
 import type { AllData } from './lib/types';
 import Auth from './components/Auth';
+import StorageSettings from './components/StorageSettings';
 import Overview from './components/Overview';
 import FuelView from './components/FuelView';
 import ServiceView from './components/ServiceView';
@@ -34,6 +35,7 @@ function remembered(key: string): string | null {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(isLocalMode);
+  const [initError, setInitError] = useState<string | null>(null);
   const [data, setData] = useState<AllData>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +49,15 @@ export default function App() {
   };
   const [vehicleId, setVehicleId] = useState<string | null>(remembered(VEHICLE_KEY));
 
+  // SQLite mode: open the on-device database before anything reads from it.
+  const [dbReady, setDbReady] = useState(!isLocalMode);
+  useEffect(() => {
+    if (!isLocalMode) return;
+    initDb()
+      .then(() => setDbReady(true))
+      .catch((e) => setInitError((e as Error).message));
+  }, []);
+
   useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => {
@@ -57,7 +68,7 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signedIn = isLocalMode || !!session;
+  const signedIn = isLocalMode ? dbReady : !!session;
 
   const reload = useCallback(async () => {
     try {
@@ -93,7 +104,16 @@ export default function App() {
     }
   };
 
-  if (!authReady) return <div className="center muted">Loading…</div>;
+  if (initError)
+    return (
+      <div className="center">
+        <p className="banner error">Couldn't open the on-device database: {initError}</p>
+        <div className="card">
+          <StorageSettings />
+        </div>
+      </div>
+    );
+  if (!authReady || (isLocalMode && !dbReady)) return <div className="center muted">Loading…</div>;
   if (!signedIn) return <Auth />;
 
   const scoped = vehicle
@@ -133,9 +153,11 @@ export default function App() {
         ))}
       </nav>
 
-      {isLocalMode && (
-        <p className="banner">
-          Demo mode: no Supabase config found, so data is stored in this browser only. See README to connect a database.
+      {isLocalMode && !storageStatus.persistent && (
+        <p className="banner error">
+          This browser can't save the on-device database ({storageStatus.reason ?? 'OPFS unavailable'}). Data will be lost
+          when you close or reload the page — download a backup in Settings. If the app is open in another tab, close it
+          and reload.
         </p>
       )}
       {error && <p className="banner error">Couldn't load data: {error}</p>}

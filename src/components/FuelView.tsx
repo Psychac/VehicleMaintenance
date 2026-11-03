@@ -21,7 +21,8 @@ export default function FuelView({ vehicle, fuel, service, reload }: VehicleScop
       </div>
       {rows.length === 0 ? (
         <p className="muted card">
-          No fill-ups yet. Fill the tank to full and log it: efficiency is calculated from one full tank to the next.
+          No fill-ups yet. Log each fill with the fuel left before filling, or fill to full each time: efficiency is
+          calculated between consecutive fills that have a known tank level.
         </p>
       ) : (
         <div className="table-wrap card">
@@ -98,6 +99,7 @@ function FuelForm({
       litres: numOrNull(f.get('litres')) ?? 0,
       total_cost: numOrNull(f.get('total_cost')) ?? 0,
       full_tank: f.get('full_tank') === 'on',
+      remaining_litres: numOrNull(f.get('remaining_litres')),
       station: strOrNull(f.get('station')),
       notes: strOrNull(f.get('notes')),
     };
@@ -164,6 +166,18 @@ function FuelForm({
             />
           </label>
         </div>
+        <label>
+          Fuel left before filling (litres, optional)
+          <input
+            name="remaining_litres"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="any"
+            defaultValue={log?.remaining_litres ?? ''}
+            placeholder="from the bike's display, lets km/L work without full tanks"
+          />
+        </label>
         <label className="check">
           <input name="full_tank" type="checkbox" defaultChecked={log?.full_tank ?? true} />
           Filled to full tank

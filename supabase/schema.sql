@@ -24,10 +24,13 @@ create table if not exists public.fuel_logs (
   litres numeric not null,
   total_cost numeric not null default 0,
   full_tank boolean not null default true,
+  remaining_litres numeric,
   station text,
   notes text,
   created_at timestamptz not null default now()
 );
+-- For databases created before remaining_litres existed (safe to re-run):
+alter table public.fuel_logs add column if not exists remaining_litres numeric;
 
 create table if not exists public.service_logs (
   id uuid primary key default gen_random_uuid(),

@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/db';
+import StorageSettings from './StorageSettings';
 
 export default function Auth() {
+  const [showStorage, setShowStorage] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -49,7 +51,15 @@ export default function Auth() {
         <button type="button" className="link" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}>
           {mode === 'signin' ? 'New here? Create an account' : 'Have an account? Sign in'}
         </button>
+        <button type="button" className="link" onClick={() => setShowStorage(!showStorage)}>
+          Storage settings
+        </button>
       </form>
+      {showStorage && (
+        <div className="card">
+          <StorageSettings />
+        </div>
+      )}
     </div>
   );
 }
