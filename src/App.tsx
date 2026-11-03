@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { initDb, isLocalMode, listAll, storageStatus, supabase } from './lib/db';
+import { applyPendingCopy, initDb, isLocalMode, listAll, storageStatus, supabase } from './lib/db';
 import type { AllData } from './lib/types';
 import Auth from './components/Auth';
 import StorageSettings from './components/StorageSettings';
@@ -39,6 +39,7 @@ export default function App() {
   const [data, setData] = useState<AllData>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTabState] = useState<Tab>(() => {
     const fromHash = window.location.hash.slice(1);
     return TABS.some(([id]) => id === fromHash) ? (fromHash as Tab) : 'overview';
@@ -82,7 +83,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (signedIn) reload();
+    if (!signedIn) return;
+    // Import data parked by Settings -> Storage "copy my data" before the first read.
+    applyPendingCopy()
+      .then((msg) => msg && setNotice(msg))
+      .finally(reload);
   }, [signedIn, reload]);
 
   // Refresh when returning to the app so edits made on another device show up.
@@ -160,6 +165,7 @@ export default function App() {
           and reload.
         </p>
       )}
+      {notice && <p className="banner">{notice}</p>}
       {error && <p className="banner error">Couldn't load data: {error}</p>}
 
       <main>

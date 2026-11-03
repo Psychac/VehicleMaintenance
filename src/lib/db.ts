@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { loadConfig } from './config';
 import { callSqlite } from './sqlite/client';
+import { planMerge, type ConflictStrategy, type MergeReport } from './merge';
 import { TABLES, type AllData, type TableName, type Tables } from './types';
 
 type Row<T extends TableName> = Tables[T];
@@ -94,6 +95,67 @@ export async function restoreAll(data: AllData): Promise<void> {
     if (!rows[table].length) continue;
     const { error } = await supabase.from(table).upsert(rows[table]);
     fail(error);
+  }
+}
+
+const PENDING_KEY = 'vehicle-log:pending-copy';
+
+interface PendingCopy {
+  strategy: ConflictStrategy;
+  data: AllData;
+}
+
+/**
+ * Reads everything from the active backend and parks it in this browser so the backend we are about to
+ * switch to can import it on next load (Supabase needs a signed-in user first, so it can't be written now).
+ * Throws if the active backend can't be read; nothing is parked in that case.
+ */
+export async function stashDataForSwitch(strategy: ConflictStrategy): Promise<number> {
+  const data = await listAll();
+  const pending: PendingCopy = { strategy, data };
+  localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+  return TABLES.reduce((n, t) => n + data[t].length, 0);
+}
+
+export function discardPendingCopy(): void {
+  localStorage.removeItem(PENDING_KEY);
+}
+
+/** Copies rows into the active backend without clobbering by accident; see planMerge. */
+export async function mergeAll(data: AllData, strategy: ConflictStrategy): Promise<MergeReport> {
+  const { toWrite, report } = planMerge(await listAll(), data, strategy);
+  await restoreAll(toWrite);
+  return report;
+}
+
+/**
+ * Imports data parked by stashDataForSwitch into the (now active) backend. Rows are upserted by id, so a
+ * retry is harmless. Returns a message to show, or null when nothing was pending. The parked copy is kept
+ * on failure so the next load can retry.
+ */
+export async function applyPendingCopy(): Promise<string | null> {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(PENDING_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  try {
+    const { data, strategy } = JSON.parse(raw) as PendingCopy;
+    const r = await mergeAll(data, strategy);
+    localStorage.removeItem(PENDING_KEY);
+    const parts = [`${r.added} added`, `${r.unchanged} already present`];
+    if (r.conflicts) {
+      parts.push(
+        strategy === 'overwrite'
+          ? `${r.overwritten} existing entries replaced by the copied version`
+          : `${r.conflicts} entries differ from what was already here, so the existing version was kept`
+      );
+    }
+    return `Copied your previous data here: ${parts.join(', ')}.`;
+  } catch (ex) {
+    return `Couldn't copy your previous data yet (${(ex as Error).message}). It will retry on next load.`;
   }
 }
 
