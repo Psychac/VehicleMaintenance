@@ -3,6 +3,7 @@ import { currentOdometer } from '../lib/calc';
 import { deleteRow, insertRow, updateRow } from '../lib/db';
 import { fmtDate, fmtKm, fmtMoney, numOrNull, strOrNull, today } from '../lib/format';
 import { SERVICE_CATEGORIES, type Reminder, type ServiceLog } from '../lib/types';
+import { IconPlus, IconWrench } from './icons';
 import Modal from './Modal';
 import { confirmDelete, type VehicleScope } from './shared';
 
@@ -12,8 +13,9 @@ export default function ServiceView({
   service,
   reminders,
   reload,
-}: VehicleScope & { reload: () => Promise<void> }) {
-  const [editing, setEditing] = useState<ServiceLog | 'new' | null>(null);
+  openNew,
+}: VehicleScope & { reload: () => Promise<void>; openNew?: boolean }) {
+  const [editing, setEditing] = useState<ServiceLog | 'new' | null>(openNew ? 'new' : null);
   const [filter, setFilter] = useState('all');
   const odo = currentOdometer(vehicle, fuel, service);
   const rows = service
@@ -23,9 +25,14 @@ export default function ServiceView({
   return (
     <div className="stack">
       <div className="card-head">
-        <h2>Service &amp; expenses</h2>
+        <div>
+          <h2>Service &amp; expenses</h2>
+          <p className="muted small">
+            {rows.length} entr{rows.length === 1 ? 'y' : 'ies'} · {fmtMoney(rows.reduce((t, r) => t + Number(r.cost), 0))}
+          </p>
+        </div>
         <button className="primary" onClick={() => setEditing('new')}>
-          + Add entry
+          <IconPlus size={16} /> Add entry
         </button>
       </div>
       <select aria-label="Category filter" value={filter} onChange={(e) => setFilter(e.target.value)} className="filter">
@@ -37,12 +44,23 @@ export default function ServiceView({
         ))}
       </select>
       {rows.length === 0 ? (
-        <p className="muted card">No entries yet. Log services, repairs, tyres, insurance and other running costs here.</p>
+        <div className="empty card">
+          <span className="empty-icon">
+            <IconWrench size={28} />
+          </span>
+          <h2>{filter === 'all' ? 'No entries yet' : `No ${filter} entries`}</h2>
+          <p className="muted">Log services, repairs, tyres, insurance and other running costs here.</p>
+          {filter === 'all' && (
+            <button className="primary" onClick={() => setEditing('new')}>
+              <IconPlus size={16} /> Add your first entry
+            </button>
+          )}
+        </div>
       ) : (
         <ul className="list card">
           {rows.map((s) => (
             <li key={s.id} className="clickable" onClick={() => setEditing(s)}>
-              <div>
+              <div className="grow">
                 <strong>{s.title}</strong> <span className="tag">{s.category}</span>
                 <div className="muted small">
                   {fmtDate(s.date)}

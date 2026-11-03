@@ -3,6 +3,7 @@ import { currentOdometer, reminderStatus } from '../lib/calc';
 import { deleteRow, insertRow, updateRow } from '../lib/db';
 import { fmtDate, fmtKm, numOrNull, strOrNull, today } from '../lib/format';
 import type { Reminder } from '../lib/types';
+import { IconBell, IconPlus } from './icons';
 import Modal from './Modal';
 import { ReminderBadge, dueText } from './ReminderBadge';
 import { confirmDelete, type VehicleScope } from './shared';
@@ -28,6 +29,7 @@ export default function RemindersView({
   reload,
 }: VehicleScope & { reload: () => Promise<void> }) {
   const [editing, setEditing] = useState<Reminder | 'new' | null>(null);
+  const [completing, setCompleting] = useState<Reminder | null>(null);
   const odo = currentOdometer(vehicle, fuel, service);
   const todayIso = today();
   const order = { overdue: 0, soon: 1, unknown: 2, ok: 3 };
@@ -35,34 +37,34 @@ export default function RemindersView({
     .map((r) => ({ r, s: reminderStatus(r, odo, todayIso) }))
     .sort((a, b) => order[a.s.state] - order[b.s.state] || a.r.title.localeCompare(b.r.title));
 
-  async function markDone(r: Reminder) {
-    const input = window.prompt(`Mark "${r.title}" done today at odometer (km):`, String(odo));
-    if (input === null) return;
-    const km = Number(input);
-    await updateRow('reminders', r.id, {
-      last_done_date: todayIso,
-      last_done_odometer: Number.isFinite(km) && input.trim() !== '' ? km : r.last_done_odometer,
-    });
-    await reload();
-  }
-
   return (
     <div className="stack">
       <div className="card-head">
-        <h2>Reminders</h2>
+        <div>
+          <h2>Reminders</h2>
+          <p className="muted small">
+            Due by distance, time, or whichever comes first · odometer {fmtKm(odo)}
+          </p>
+        </div>
         <button className="primary" onClick={() => setEditing('new')}>
-          + Add reminder
+          <IconPlus size={16} /> Add reminder
         </button>
       </div>
-      <p className="muted small">
-        Each reminder is due after a distance, a time period, or whichever comes first. Current odometer: {fmtKm(odo)}.
-      </p>
       {rows.length === 0 ? (
-        <p className="muted card">No reminders yet.</p>
+        <div className="empty card">
+          <span className="empty-icon">
+            <IconBell size={28} />
+          </span>
+          <h2>No reminders yet</h2>
+          <p className="muted">Track oil changes, tyre rotation, insurance renewal and more so nothing sneaks up on you.</p>
+          <button className="primary" onClick={() => setEditing('new')}>
+            <IconPlus size={16} /> Add a reminder
+          </button>
+        </div>
       ) : (
         <ul className="list card">
           {rows.map(({ r, s }) => (
-            <li key={r.id}>
+            <li key={r.id} className={`status-${s.state}`}>
               <div className="clickable grow" onClick={() => setEditing(r)}>
                 <strong>{r.title}</strong>
                 <div className="muted small">
@@ -76,13 +78,24 @@ export default function RemindersView({
               </div>
               <div className="col-end">
                 <ReminderBadge status={s} />
-                <button className="small-btn" onClick={() => markDone(r)}>
+                <button className="small-btn" onClick={() => setCompleting(r)}>
                   Mark done
                 </button>
               </div>
             </li>
           ))}
         </ul>
+      )}
+      {completing && (
+        <DoneForm
+          reminder={completing}
+          suggestedOdo={odo}
+          onClose={() => setCompleting(null)}
+          onSaved={async () => {
+            setCompleting(null);
+            await reload();
+          }}
+        />
       )}
       {editing && (
         <ReminderForm
@@ -209,6 +222,71 @@ function ReminderForm({
               Delete
             </button>
           )}
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary" disabled={busy}>
+            Save
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** Records that a reminder's task was just done, resetting its due distance and date. */
+function DoneForm({
+  reminder,
+  suggestedOdo,
+  onClose,
+  onSaved,
+}: {
+  reminder: Reminder;
+  suggestedOdo: number;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    setBusy(true);
+    try {
+      await updateRow('reminders', reminder.id, {
+        last_done_date: String(f.get('date')),
+        last_done_odometer: numOrNull(f.get('odometer')) ?? reminder.last_done_odometer,
+      });
+      await onSaved();
+    } catch (ex) {
+      setErr((ex as Error).message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={`Mark done: ${reminder.title}`} onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <div className="row">
+          <label>
+            Date done
+            <input name="date" type="date" defaultValue={today()} required />
+          </label>
+          <label>
+            Odometer (km)
+            <input
+              name="odometer"
+              type="number"
+              inputMode="numeric"
+              min="0"
+              step="any"
+              defaultValue={suggestedOdo}
+            />
+          </label>
+        </div>
+        {err && <p className="form-msg">{err}</p>}
+        <div className="form-actions">
           <button type="button" onClick={onClose}>
             Cancel
           </button>

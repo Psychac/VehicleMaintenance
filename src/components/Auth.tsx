@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { supabase } from '../lib/db';
+import { IconCar } from './icons';
 import StorageSettings from './StorageSettings';
 
 export default function Auth() {
@@ -27,8 +28,13 @@ export default function Auth() {
 
   return (
     <div className="auth">
-      <form className="card" onSubmit={submit}>
-        <h1>Vehicle Log</h1>
+      <form className="card form" onSubmit={submit}>
+        <div className="brand auth-brand">
+          <span className="brand-mark">
+            <IconCar size={20} />
+          </span>
+          <span className="brand-name">Vehicle Log</span>
+        </div>
         <p className="muted">{mode === 'signin' ? 'Sign in to sync your vehicles.' : 'Create your account.'}</p>
         <label>
           Email

@@ -3,30 +3,49 @@ import { currentOdometer, fuelEfficiency } from '../lib/calc';
 import { deleteRow, insertRow, updateRow } from '../lib/db';
 import { fmtDate, fmtDec, fmtKm, fmtMoney, numOrNull, strOrNull, today } from '../lib/format';
 import type { FuelLog } from '../lib/types';
+import { IconFuel, IconPlus } from './icons';
 import Modal from './Modal';
 import { confirmDelete, type VehicleScope } from './shared';
 
-export default function FuelView({ vehicle, fuel, service, reload }: VehicleScope & { reload: () => Promise<void> }) {
-  const [editing, setEditing] = useState<FuelLog | 'new' | null>(null);
+export default function FuelView({
+  vehicle,
+  fuel,
+  service,
+  reload,
+  openNew,
+}: VehicleScope & { reload: () => Promise<void>; openNew?: boolean }) {
+  const [editing, setEditing] = useState<FuelLog | 'new' | null>(openNew ? 'new' : null);
   const rows = fuelEfficiency(fuel).reverse();
   const odo = currentOdometer(vehicle, fuel, service);
 
   return (
     <div className="stack">
       <div className="card-head">
-        <h2>Fuel log</h2>
+        <div>
+          <h2>Fuel log</h2>
+          <p className="muted small">{rows.length} fill-up{rows.length === 1 ? '' : 's'} · tap a row to edit</p>
+        </div>
         <button className="primary" onClick={() => setEditing('new')}>
-          + Add fill-up
+          <IconPlus size={16} /> Add fill-up
         </button>
       </div>
       {rows.length === 0 ? (
-        <p className="muted card">
-          No fill-ups yet. Log each fill with the fuel left before filling, or fill to full each time: efficiency is
-          calculated between consecutive fills that have a known tank level.
-        </p>
+        <div className="empty card">
+          <span className="empty-icon">
+            <IconFuel size={28} />
+          </span>
+          <h2>No fill-ups yet</h2>
+          <p className="muted">
+            Log each fill with the fuel left before filling, or fill to full each time: efficiency is calculated between
+            consecutive fills that have a known tank level.
+          </p>
+          <button className="primary" onClick={() => setEditing('new')}>
+            <IconPlus size={16} /> Add your first fill-up
+          </button>
+        </div>
       ) : (
         <div className="table-wrap card">
-          <table>
+          <table className="stack-table">
             <thead>
               <tr>
                 <th>Date</th>
@@ -40,17 +59,17 @@ export default function FuelView({ vehicle, fuel, service, reload }: VehicleScop
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="clickable" onClick={() => setEditing(r)}>
-                  <td>
+                  <td className="cell-main">
                     {fmtDate(r.date)}
                     {!r.full_tank && <span className="tag">partial</span>}
                   </td>
-                  <td className="num">{fmtKm(Number(r.odometer))}</td>
-                  <td className="num">{fmtDec(Number(r.litres))}</td>
-                  <td className="num">{fmtMoney(Number(r.total_cost))}</td>
-                  <td className="num">
+                  <td className="num" data-label="Odometer">{fmtKm(Number(r.odometer))}</td>
+                  <td className="num" data-label="Litres">{fmtDec(Number(r.litres))}</td>
+                  <td className="num" data-label="Cost">{fmtMoney(Number(r.total_cost))}</td>
+                  <td className="num" data-label="Per litre">
                     {Number(r.litres) > 0 ? fmtDec(Number(r.total_cost) / Number(r.litres)) : '—'}
                   </td>
-                  <td className="num">{r.efficiency !== null ? fmtDec(r.efficiency) : '—'}</td>
+                  <td className="num cell-eff" data-label="km/L">{r.efficiency !== null ? fmtDec(r.efficiency) : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -175,7 +194,7 @@ function FuelForm({
             min="0"
             step="any"
             defaultValue={log?.remaining_litres ?? ''}
-            placeholder="from the bike's display, lets km/L work without full tanks"
+            placeholder="from the dashboard display"
           />
         </label>
         <label className="check">

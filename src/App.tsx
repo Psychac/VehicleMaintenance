@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { currentOdometer, reminderStatus } from './lib/calc';
+import { today } from './lib/format';
 import { applyPendingCopy, initDb, isLocalMode, listAll, storageStatus, supabase } from './lib/db';
 import type { AllData } from './lib/types';
 import Auth from './components/Auth';
@@ -10,14 +12,15 @@ import ServiceView from './components/ServiceView';
 import RemindersView from './components/RemindersView';
 import ReportsView from './components/ReportsView';
 import SettingsView from './components/SettingsView';
+import { IconBell, IconChart, IconCar, IconFuel, IconHome, IconSettings, IconWrench } from './components/icons';
 
 const TABS = [
-  ['overview', 'Overview'],
-  ['fuel', 'Fuel'],
-  ['service', 'Service'],
-  ['reminders', 'Reminders'],
-  ['reports', 'Reports'],
-  ['settings', 'Settings'],
+  ['overview', 'Overview', IconHome],
+  ['fuel', 'Fuel', IconFuel],
+  ['service', 'Service', IconWrench],
+  ['reminders', 'Reminders', IconBell],
+  ['reports', 'Reports', IconChart],
+  ['settings', 'Settings', IconSettings],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
@@ -44,9 +47,13 @@ export default function App() {
     const fromHash = window.location.hash.slice(1);
     return TABS.some(([id]) => id === fromHash) ? (fromHash as Tab) : 'overview';
   });
-  const setTab = (t: Tab) => {
+  // `add` asks the destination view to open its "new entry" form straight away.
+  const [openNew, setOpenNew] = useState(false);
+  const setTab = (t: Tab, add = false) => {
     setTabState(t);
+    setOpenNew(add);
     history.replaceState(null, '', `#${t}`);
+    window.scrollTo({ top: 0 });
   };
   const [vehicleId, setVehicleId] = useState<string | null>(remembered(VEHICLE_KEY));
 
@@ -118,7 +125,12 @@ export default function App() {
         </div>
       </div>
     );
-  if (!authReady || (isLocalMode && !dbReady)) return <div className="center muted">Loading…</div>;
+  if (!authReady || (isLocalMode && !dbReady))
+    return (
+      <div className="center muted">
+        <span className="spinner" aria-label="Loading" />
+      </div>
+    );
   if (!signedIn) return <Auth />;
 
   const scoped = vehicle
@@ -131,67 +143,121 @@ export default function App() {
 
   const needsVehicle = !vehicle && tab !== 'settings';
 
+  const overdueCount = scoped
+    ? scoped.reminders.filter((r) => {
+        const st = reminderStatus(r, currentOdometer(vehicle!, scoped.fuel, scoped.service), today()).state;
+        return st === 'overdue';
+      }).length
+    : 0;
+
   return (
-    <div className="app">
-      <header className="topbar">
-        <h1>Vehicle Log</h1>
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-mark">
+            <IconCar size={20} />
+          </span>
+          <span className="brand-name">Vehicle Log</span>
+        </div>
+
         {activeVehicles.length > 0 && (
-          <select
-            aria-label="Vehicle"
-            value={vehicle?.id ?? ''}
-            onChange={(e) => selectVehicle(e.target.value)}
-          >
-            {activeVehicles.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
+          <label className="vehicle-picker">
+            <span className="vehicle-picker-label">Vehicle</span>
+            <select aria-label="Vehicle" value={vehicle?.id ?? ''} onChange={(e) => selectVehicle(e.target.value)}>
+              {activeVehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
-      </header>
 
-      <nav className="tabs" role="tablist">
-        {TABS.map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      {isLocalMode && !storageStatus.persistent && (
-        <p className="banner error">
-          This browser can't save the on-device database ({storageStatus.reason ?? 'OPFS unavailable'}). Data will be lost
-          when you close or reload the page — download a backup in Settings. If the app is open in another tab, close it
-          and reload.
-        </p>
-      )}
-      {notice && <p className="banner">{notice}</p>}
-      {error && <p className="banner error">Couldn't load data: {error}</p>}
-
-      <main>
-        {loading ? (
-          <p className="muted">Loading…</p>
-        ) : needsVehicle ? (
-          <div className="empty">
-            <p>Add your first vehicle to get started.</p>
-            <button className="primary" onClick={() => setTab('settings')}>
-              Add a vehicle
+        <nav className="nav" role="tablist" aria-label="Sections">
+          {TABS.map(([id, label, Icon]) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={tab === id}
+              aria-label={id === 'reminders' && overdueCount ? `${label}, ${overdueCount} overdue` : label}
+              className={tab === id ? 'active' : ''}
+              onClick={() => setTab(id)}
+            >
+              <span className="nav-icon">
+                <Icon size={22} />
+                {id === 'reminders' && overdueCount > 0 && <span className="dot">{overdueCount}</span>}
+              </span>
+              <span className="nav-label">{label}</span>
             </button>
+          ))}
+        </nav>
+      </aside>
+
+      <div className="content">
+        <header className="topbar">
+          <div className="brand">
+            <span className="brand-mark">
+              <IconCar size={18} />
+            </span>
+            <span className="brand-name">Vehicle Log</span>
           </div>
-        ) : tab === 'overview' && vehicle && scoped ? (
-          <Overview vehicle={vehicle} {...scoped} onNavigate={setTab} />
-        ) : tab === 'fuel' && vehicle && scoped ? (
-          <FuelView vehicle={vehicle} {...scoped} reload={reload} />
-        ) : tab === 'service' && vehicle && scoped ? (
-          <ServiceView vehicle={vehicle} {...scoped} reload={reload} />
-        ) : tab === 'reminders' && vehicle && scoped ? (
-          <RemindersView vehicle={vehicle} {...scoped} reload={reload} />
-        ) : tab === 'reports' && vehicle && scoped ? (
-          <ReportsView vehicle={vehicle} {...scoped} />
-        ) : (
-          <SettingsView data={data} reload={reload} onVehicleAdded={selectVehicle} />
-        )}
-      </main>
+          {activeVehicles.length > 0 && (
+            <select
+              aria-label="Vehicle"
+              className="vehicle-select"
+              value={vehicle?.id ?? ''}
+              onChange={(e) => selectVehicle(e.target.value)}
+            >
+              {activeVehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </header>
+
+        <main className="page" key={tab}>
+          {isLocalMode && !storageStatus.persistent && (
+            <p className="banner error">
+              This browser can't save the on-device database ({storageStatus.reason ?? 'OPFS unavailable'}). Data will be
+              lost when you close or reload the page — download a backup in Settings. If the app is open in another tab,
+              close it and reload.
+            </p>
+          )}
+          {notice && <p className="banner">{notice}</p>}
+          {error && <p className="banner error">Couldn't load data: {error}</p>}
+
+          {loading ? (
+            <div className="center-inline muted">
+              <span className="spinner" aria-label="Loading" />
+            </div>
+          ) : needsVehicle ? (
+            <div className="empty card">
+              <span className="empty-icon">
+                <IconCar size={28} />
+              </span>
+              <h2>Add your first vehicle</h2>
+              <p className="muted">Create a vehicle to start logging fuel, services and reminders.</p>
+              <button className="primary" onClick={() => setTab('settings')}>
+                Add a vehicle
+              </button>
+            </div>
+          ) : tab === 'overview' && vehicle && scoped ? (
+            <Overview vehicle={vehicle} {...scoped} onNavigate={setTab} />
+          ) : tab === 'fuel' && vehicle && scoped ? (
+            <FuelView vehicle={vehicle} {...scoped} reload={reload} openNew={openNew} />
+          ) : tab === 'service' && vehicle && scoped ? (
+            <ServiceView vehicle={vehicle} {...scoped} reload={reload} openNew={openNew} />
+          ) : tab === 'reminders' && vehicle && scoped ? (
+            <RemindersView vehicle={vehicle} {...scoped} reload={reload} />
+          ) : tab === 'reports' && vehicle && scoped ? (
+            <ReportsView vehicle={vehicle} {...scoped} />
+          ) : (
+            <SettingsView data={data} reload={reload} onVehicleAdded={selectVehicle} />
+          )}
+        </main>
+      </div>
     </div>
   );
 }
