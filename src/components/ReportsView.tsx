@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { averageEfficiency, costsByCategory, fuelEfficiency, monthlyCosts, type MonthCost } from '../lib/calc';
 import { fmtDate, fmtDec, fmtMoney, today } from '../lib/format';
+import PageHeader from './PageHeader';
 import type { VehicleScope } from './shared';
 
 const monthLabel = (ym: string, long = false) =>
@@ -18,26 +19,24 @@ export default function ReportsView({ fuel, service }: VehicleScope) {
 
   return (
     <div className="stack">
-      <div className="card-head">
-        <h2>Reports</h2>
-        <div className="seg" role="group" aria-label="Range">
-          {[6, 12, 24].map((n) => (
-            <button key={n} className={range === n ? 'active' : ''} onClick={() => setRange(n)}>
-              {n} mo
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Reports"
+        subtitle={`${fmtMoney(total)} over ${range} months · ${fmtMoney(total / range)}/month`}
+        action={
+          <div className="seg" role="group" aria-label="Range">
+            {[6, 12, 24].map((n) => (
+              <button key={n} className={range === n ? 'active' : ''} onClick={() => setRange(n)}>
+                {n} mo
+              </button>
+            ))}
+          </div>
+        }
+      />
 
+      <div className="bento-reports">
       <section className="card">
         <div className="card-head">
-          <div>
-            <h3>Monthly spend</h3>
-            <div className="stat-value">{fmtMoney(total)}</div>
-            <div className="muted small">
-              total over {range} months · avg {fmtMoney(total / range)}/month
-            </div>
-          </div>
+          <h3>Monthly spend</h3>
           <button className="link" onClick={() => setAsTable(!asTable)}>
             {asTable ? 'Show chart' : 'Show table'}
           </button>
@@ -77,6 +76,7 @@ export default function ReportsView({ fuel, service }: VehicleScope) {
           </>
         )}
       </section>
+      </div>
     </div>
   );
 }

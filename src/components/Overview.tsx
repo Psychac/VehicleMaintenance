@@ -42,25 +42,50 @@ export default function Overview({
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 6);
 
+  const lastFill = fuel.reduce<string | null>((m, f) => (m === null || f.date > m ? f.date : m), null);
+  const fmtShortDate = (iso: string) =>
+    new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   const details = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
 
   return (
     <div className="stack">
+      <div className="bento">
       <section className="hero">
-        <div className="hero-main">
-          <div className="hero-eyebrow">{details || 'Your vehicle'}</div>
-          <h1 className="hero-title">{vehicle.name}</h1>
-          <div className="hero-meta">
-            {vehicle.plate && <span className="plate">{vehicle.plate}</span>}
-            <span>{vehicle.fuel_type}</span>
+        <div className="hero-row">
+          <div className="hero-main">
+            <div className="hero-eyebrow">{details || 'Your vehicle'}</div>
+            <h1 className="hero-title">{vehicle.name}</h1>
+            <div className="hero-meta">
+              {vehicle.plate && <span className="plate">{vehicle.plate}</span>}
+              {vehicle.fuel_type && <span className="fuel-type">{vehicle.fuel_type}</span>}
+            </div>
+          </div>
+          <div className="hero-odo">
+            <div className="hero-odo-label">Odometer</div>
+            <div className="hero-odo-value">{fmtKm(odo)}</div>
           </div>
         </div>
-        <div className="hero-odo">
-          <div className="hero-odo-label">Odometer</div>
-          <div className="hero-odo-value">{fmtKm(odo)}</div>
+        <div className="hero-foot">
+          <span>{driven > 0 ? `${fmtKm(driven)} tracked` : 'No distance tracked yet'}</span>
+          <span>{lastFill ? `Last fill-up ${fmtShortDate(lastFill)}` : 'No fill-ups yet'}</span>
         </div>
       </section>
-
+        <Stat
+          tint={1}
+          icon={<IconDroplet size={18} />}
+          label="Average"
+          value={avg ? `${fmtDec(avg)} km/L` : '—'}
+          hint={last ? `last tank ${fmtDec(last)} km/L` : 'needs two fill-ups'}
+        />
+        <Stat tint={2} icon={<IconWallet size={18} />} label="This month" value={fmtMoney(monthSpend)} hint="fuel + service" />
+        <Stat
+          tint={3}
+          icon={<IconRoute size={18} />}
+          label="Cost per km"
+          value={driven > 0 && totalSpend > 0 ? fmtMoney(totalSpend / driven) : '—'}
+          hint={driven > 0 ? `over ${fmtKm(driven)} tracked` : undefined}
+        />
+        <Stat tint={4} icon={<IconGauge size={18} />} label="Total spent" value={fmtMoney(totalSpend)} hint="all time" />
       <div className="quick">
         <button className="primary" onClick={() => onNavigate('fuel', true)}>
           <IconFuel size={18} /> Log fuel
@@ -69,23 +94,7 @@ export default function Overview({
           <IconWrench size={18} /> Log service / expense
         </button>
       </div>
-
-      <section className="stats">
-        <Stat
-          icon={<IconDroplet size={18} />}
-          label="Average"
-          value={avg ? `${fmtDec(avg)} km/L` : '—'}
-          hint={last ? `last tank ${fmtDec(last)} km/L` : 'needs two fill-ups'}
-        />
-        <Stat icon={<IconWallet size={18} />} label="This month" value={fmtMoney(monthSpend)} hint="fuel + service" />
-        <Stat
-          icon={<IconRoute size={18} />}
-          label="Cost per km"
-          value={driven > 0 && totalSpend > 0 ? fmtMoney(totalSpend / driven) : '—'}
-          hint={driven > 0 ? `over ${fmtKm(driven)} tracked` : undefined}
-        />
-        <Stat icon={<IconGauge size={18} />} label="Total spent" value={fmtMoney(totalSpend)} hint="all time" />
-      </section>
+      </div>
 
       <div className="grid-2">
         <section className="card">
@@ -150,9 +159,21 @@ export default function Overview({
   );
 }
 
-function Stat({ icon, label, value, hint }: { icon: ReactNode; label: string; value: string; hint?: string }) {
+function Stat({
+  tint,
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  tint: 1 | 2 | 3 | 4;
+  icon: ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
-    <div className="stat card">
+    <div className={`stat card tint-${tint}`}>
       <div className="stat-label">
         <span className="stat-icon">{icon}</span>
         {label}

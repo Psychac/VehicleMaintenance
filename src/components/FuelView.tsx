@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { currentOdometer, fuelEfficiency } from '../lib/calc';
+import { averageEfficiency, currentOdometer, fuelEfficiency } from '../lib/calc';
 import { deleteRow, insertRow, updateRow } from '../lib/db';
 import { fmtDate, fmtDec, fmtKm, fmtMoney, numOrNull, strOrNull, today } from '../lib/format';
 import type { FuelLog } from '../lib/types';
 import { IconFuel, IconPlus } from './icons';
 import Modal from './Modal';
+import PageHeader from './PageHeader';
 import { confirmDelete, type VehicleScope } from './shared';
 
 export default function FuelView({
@@ -17,18 +18,25 @@ export default function FuelView({
   const [editing, setEditing] = useState<FuelLog | 'new' | null>(openNew ? 'new' : null);
   const rows = fuelEfficiency(fuel).reverse();
   const odo = currentOdometer(vehicle, fuel, service);
+  const avg = averageEfficiency(rows);
 
   return (
     <div className="stack">
-      <div className="card-head">
-        <div>
-          <h2>Fuel log</h2>
-          <p className="muted small">{rows.length} fill-up{rows.length === 1 ? '' : 's'} · tap a row to edit</p>
-        </div>
-        <button className="primary" onClick={() => setEditing('new')}>
-          <IconPlus size={16} /> Add fill-up
-        </button>
-      </div>
+      <PageHeader
+        title="Fuel log"
+        subtitle={[
+          `${rows.length} fill-up${rows.length === 1 ? '' : 's'}`,
+          avg ? `${fmtDec(avg)} km/L avg` : null,
+          fmtMoney(rows.reduce((t, r) => t + Number(r.total_cost), 0)),
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+        action={
+          <button className="primary" onClick={() => setEditing('new')}>
+            <IconPlus size={16} /> Add fill-up
+          </button>
+        }
+      />
       {rows.length === 0 ? (
         <div className="empty card">
           <span className="empty-icon">

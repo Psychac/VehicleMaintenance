@@ -5,6 +5,7 @@ import { fmtDate, fmtKm, fmtMoney, numOrNull, strOrNull, today } from '../lib/fo
 import { SERVICE_CATEGORIES, type Reminder, type ServiceLog } from '../lib/types';
 import { IconPlus, IconWrench } from './icons';
 import Modal from './Modal';
+import PageHeader from './PageHeader';
 import { confirmDelete, type VehicleScope } from './shared';
 
 export default function ServiceView({
@@ -24,17 +25,17 @@ export default function ServiceView({
 
   return (
     <div className="stack">
-      <div className="card-head">
-        <div>
-          <h2>Service &amp; expenses</h2>
-          <p className="muted small">
-            {rows.length} entr{rows.length === 1 ? 'y' : 'ies'} · {fmtMoney(rows.reduce((t, r) => t + Number(r.cost), 0))}
-          </p>
-        </div>
-        <button className="primary" onClick={() => setEditing('new')}>
-          <IconPlus size={16} /> Add entry
-        </button>
-      </div>
+      <PageHeader
+        title="Service & expenses"
+        subtitle={`${service.length} entr${service.length === 1 ? 'y' : 'ies'} · ${fmtMoney(
+          service.reduce((t, r) => t + Number(r.cost), 0)
+        )} total`}
+        action={
+          <button className="primary" onClick={() => setEditing('new')}>
+            <IconPlus size={16} /> Add entry
+          </button>
+        }
+      />
       <select aria-label="Category filter" value={filter} onChange={(e) => setFilter(e.target.value)} className="filter">
         <option value="all">All categories</option>
         {SERVICE_CATEGORIES.map((c) => (
@@ -60,6 +61,9 @@ export default function ServiceView({
         <ul className="list card">
           {rows.map((s) => (
             <li key={s.id} className="clickable" onClick={() => setEditing(s)}>
+              <span className="status-icon service">
+                <IconWrench size={16} />
+              </span>
               <div className="grow">
                 <strong>{s.title}</strong> <span className="tag">{s.category}</span>
                 <div className="muted small">

@@ -191,6 +191,10 @@ export default function App() {
             </button>
           ))}
         </nav>
+
+        <p className="sidebar-foot">
+          {isLocalMode ? 'Stored on this device' : 'Synced with your Supabase'}
+        </p>
       </aside>
 
       <div className="content">

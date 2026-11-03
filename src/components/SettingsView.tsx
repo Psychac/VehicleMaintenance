@@ -12,6 +12,7 @@ import {
 import { numOrNull, strOrNull, today } from '../lib/format';
 import type { AllData, BackupFile, Vehicle } from '../lib/types';
 import Modal from './Modal';
+import PageHeader from './PageHeader';
 import StorageSettings from './StorageSettings';
 
 export default function SettingsView({
@@ -87,6 +88,7 @@ export default function SettingsView({
 
   return (
     <div className="stack">
+      <PageHeader title="Settings" subtitle="Vehicles, backup and storage" />
       <section className="card">
         <div className="card-head">
           <h2>Vehicles</h2>
@@ -113,6 +115,7 @@ export default function SettingsView({
         )}
       </section>
 
+      <div className="bento-settings">
       <section className="card">
         <h2>Backup &amp; restore</h2>
         <p className="muted small">
@@ -144,6 +147,8 @@ export default function SettingsView({
           <button onClick={() => supabase?.auth.signOut()}>Sign out</button>
         </section>
       )}
+
+      </div>
 
       {editing && (
         <VehicleForm

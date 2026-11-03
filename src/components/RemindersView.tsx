@@ -3,8 +3,9 @@ import { currentOdometer, reminderStatus } from '../lib/calc';
 import { deleteRow, insertRow, updateRow } from '../lib/db';
 import { fmtDate, fmtKm, numOrNull, strOrNull, today } from '../lib/format';
 import type { Reminder } from '../lib/types';
-import { IconBell, IconPlus } from './icons';
+import { IconAlert, IconBell, IconCheck, IconClock, IconPlus } from './icons';
 import Modal from './Modal';
+import PageHeader from './PageHeader';
 import { ReminderBadge, dueText } from './ReminderBadge';
 import { confirmDelete, type VehicleScope } from './shared';
 
@@ -39,17 +40,17 @@ export default function RemindersView({
 
   return (
     <div className="stack">
-      <div className="card-head">
-        <div>
-          <h2>Reminders</h2>
-          <p className="muted small">
-            Due by distance, time, or whichever comes first · odometer {fmtKm(odo)}
-          </p>
-        </div>
-        <button className="primary" onClick={() => setEditing('new')}>
-          <IconPlus size={16} /> Add reminder
-        </button>
-      </div>
+      <PageHeader
+        title="Reminders"
+        subtitle={`${rows.filter((x) => x.s.state === 'overdue').length} overdue · ${
+          rows.filter((x) => x.s.state === 'soon').length
+        } due soon · odometer ${fmtKm(odo)}`}
+        action={
+          <button className="primary" onClick={() => setEditing('new')}>
+            <IconPlus size={16} /> Add reminder
+          </button>
+        }
+      />
       {rows.length === 0 ? (
         <div className="empty card">
           <span className="empty-icon">
@@ -65,6 +66,9 @@ export default function RemindersView({
         <ul className="list card">
           {rows.map(({ r, s }) => (
             <li key={r.id} className={`status-${s.state}`}>
+              <span className={`status-icon ${s.state}`}>
+                {s.state === 'overdue' ? <IconAlert size={16} /> : s.state === 'ok' ? <IconCheck size={16} /> : <IconClock size={16} />}
+              </span>
               <div className="clickable grow" onClick={() => setEditing(r)}>
                 <strong>{r.title}</strong>
                 <div className="muted small">
