@@ -24,7 +24,7 @@ npm test
 By default the app stores data in a **SQLite database on this device** (sqlite-wasm in a worker, persisted in the
 browser's origin-private file system). No account or server is needed. In **Settings → Storage** you can instead
 enter your own Supabase project URL and anon key, so each person can use their own database without a rebuild.
-`VITE_SUPABASE_*` env vars are optional defaults.
+Supabase credentials are never baked into the build; they are entered per browser.
 
 Settings → Backup & restore can download the data as a `.sqlite` file, JSON or CSV, and restore from `.sqlite` or JSON
 into either storage (this is how you move data between them). Limits of on-device storage: it's per browser profile,
@@ -35,9 +35,9 @@ clearing site data deletes it, and only one tab can have the database open at a 
 1. Sign up at <https://supabase.com> and create a new project. Pick a region close to you.
 2. Open **SQL Editor → New query**, paste the contents of [supabase/schema.sql](supabase/schema.sql) and click **Run**.
 3. In **Project Settings → API**, copy the **Project URL** and the **anon public** key.
-4. Copy `.env.example` to `.env.local` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-   `VITE_CURRENCY` sets the display currency (default `INR`).
-5. Run `npm run dev`, create your account, and sign in.
+4. Run `npm run dev`, open **Settings → Storage**, choose Supabase and enter the URL and anon key. Create your
+   account and sign in. (Optionally copy `.env.example` to `.env.local` to set `VITE_CURRENCY`, the display
+   currency, default `INR`.)
 
 The anon key is safe to ship in the website: row-level security in the schema means each signed-in user can
 only read and write their own rows.
@@ -55,10 +55,10 @@ The app is a static site. Any of these work; Vercel shown here:
 
 1. Push this folder to a GitHub repository (private is fine).
 2. On <https://vercel.com>, **Add New → Project**, import the repo. Framework preset: **Vite**.
-3. Under **Environment Variables**, add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_CURRENCY`.
+3. Under **Environment Variables**, optionally add `VITE_CURRENCY`.
 4. Deploy. Every push to the main branch redeploys.
 
-Netlify or Cloudflare Pages: build command `npm run build`, output directory `dist`, same environment variables.
+Netlify or Cloudflare Pages: build command `npm run build`, output directory `dist`, same optional environment variable.
 
 **On your phone:** open the site and choose *Add to Home screen* (Android Chrome / iOS Safari Share menu).
 It opens full screen like an app. Data refreshes whenever you switch back to it.
