@@ -1,106 +1,169 @@
+<div align="center">
+
+<img src="public/icon.svg" alt="Vehicle Log" width="96" height="96" />
+
 # Vehicle Log
 
-Track fuel, mileage (km/L), services, expenses and maintenance reminders for multiple vehicles.
-Installable on your phone (PWA), synced through a free Supabase database, with daily backups to your PC.
+**Fuel, mileage, services, expenses and maintenance reminders for all your vehicles, in one installable app.**
 
-## Features
+Works offline with on-device SQLite, or syncs through your own free Supabase project.
 
-- **Multiple vehicles**: switch from the top bar; archive sold vehicles.
-- **Fuel log**: km/L calculated full-tank to full-tank; partial fills are counted correctly.
-- **Service & expenses**: services, repairs, tyres, insurance, tax and more, with categories.
-- **Reminders**: due by distance, by time, or whichever comes first (e.g. oil every 10,000 km or 12 months).
-  Logging a service can reset the reminders it covers.
-- **Reports**: monthly spend (chart or table), spend by category, fuel-efficiency trend.
-- **Backups**: JSON/CSV export and restore in the app, plus a scheduled backup script for Windows.
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-WASM-003B57?logo=sqlite&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-optional-3ECF8E?logo=supabase&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)
 
-## Run locally
+[Features](#-features) · [Quick start](#-quick-start) · [Storage](#-choose-where-your-data-lives) · [Deploy](#-deploy-for-free) · [Backups](#-backups) · [Project layout](#-project-layout)
+
+</div>
+
+---
+
+## ✨ Features
+
+| | |
+|---|---|
+| 🚗 **Multiple vehicles** | Switch from the sidebar or top bar. Archive vehicles you've sold. |
+| ⛽ **Fuel log** | km/L is calculated full-tank to full-tank, and partial fills are counted correctly. Optionally record the litres left in the tank for tank-level efficiency. |
+| 🔧 **Service & expenses** | Services, repairs, tyres, insurance, tax/registration, cleaning and more, each with a category, vendor and notes. |
+| 🔔 **Reminders** | Due by distance, by time, or whichever comes first (for example oil every 10,000 km or 12 months). Logging a service can reset the reminders it covers. An overdue badge appears on the nav. |
+| 📊 **Reports** | Monthly spend (chart or table), spend by category, and the fuel-efficiency trend. |
+| 💾 **Backups** | Export and restore as `.sqlite`, JSON or CSV from the app, plus a scheduled backup script for Windows. |
+| 📱 **Installable PWA** | Add it to your home screen and it opens full screen like a native app. The layout adapts from phone to desktop. |
+| 🔒 **Private by default** | Nothing leaves your device unless you connect your own Supabase project. |
+
+## 🚀 Quick start
 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test
 ```
 
-By default the app stores data in a **SQLite database on this device** (sqlite-wasm in a worker, persisted in the
-browser's origin-private file system). No account or server is needed. In **Settings → Storage** you can instead
-enter your own Supabase project URL and anon key, so each person can use their own database without a rebuild.
-Supabase credentials are never baked into the build; they are entered per browser.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the Vite dev server |
+| `npm run build` | Type-check and build to `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm test` | Run the unit tests (Vitest) |
+| `npm run backup` | Write a JSON backup from Supabase (see [Backups](#-backups)) |
 
-Settings → Backup & restore can download the data as a `.sqlite` file, JSON or CSV, and restore from `.sqlite` or JSON
-into either storage (this is how you move data between them). Limits of on-device storage: it's per browser profile,
-clearing site data deletes it, and only one tab can have the database open at a time.
+Optional: copy `.env.example` to `.env.local` to set `VITE_CURRENCY`, the display currency (ISO code, default `INR`).
 
-## 1. Create the database (Supabase, free tier)
+## 🗄️ Choose where your data lives
 
-1. Sign up at <https://supabase.com> and create a new project. Pick a region close to you.
-2. Open **SQL Editor → New query**, paste the contents of [supabase/schema.sql](supabase/schema.sql) and click **Run**.
+```mermaid
+flowchart LR
+    App["Vehicle Log (React PWA)"] --> Mode{"Settings → Storage"}
+    Mode -->|Default| Local[("On-device SQLite<br/>sqlite-wasm + OPFS")]
+    Mode -->|Your own project| Cloud[("Supabase Postgres<br/>row-level security")]
+```
+
+| | **On-device (default)** | **Supabase** |
+|---|---|---|
+| Account needed | No | Yes (your own free project) |
+| Sync between devices | No | Yes |
+| Where data is stored | Browser origin-private file system | Your Supabase database |
+| Good to know | Per browser profile. Clearing site data deletes it. Only one tab can open the database at a time. | Free projects pause after about a week of inactivity. |
+
+Supabase credentials are **never baked into the build**. Each person enters their own project URL and anon key in
+**Settings → Storage**, so no rebuild is needed. When you switch storage, the app can copy your data across and
+handles conflicts.
+
+**Settings → Backup & restore** downloads your data as `.sqlite`, JSON or CSV, and restores from `.sqlite` or JSON
+into either storage.
+
+<details>
+<summary><b>Set up Supabase (optional, free tier)</b></summary>
+
+1. Sign up at <https://supabase.com> and create a new project in a region close to you.
+2. Open **SQL Editor → New query**, paste [supabase/schema.sql](supabase/schema.sql) and click **Run**.
 3. In **Project Settings → API**, copy the **Project URL** and the **anon public** key.
 4. Run `npm run dev`, open **Settings → Storage**, choose Supabase and enter the URL and anon key. Create your
-   account and sign in. (Optionally copy `.env.example` to `.env.local` to set `VITE_CURRENCY`, the display
-   currency, default `INR`.)
+   account and sign in.
 
-The anon key is safe to ship in the website: row-level security in the schema means each signed-in user can
-only read and write their own rows.
+The anon key is safe to ship in a website. Row-level security in the schema means each signed-in user can only read
+and write their own rows.
 
-**Email confirmation:** Supabase sends a confirmation email on sign-up by default. Since you're the only user,
-you can turn it off under **Authentication → Sign In / Providers → Email → Confirm email**. If you keep it on,
-set **Authentication → URL Configuration → Site URL** to your deployed URL so the email link points there.
+**Email confirmation:** Supabase sends a confirmation email on sign-up by default. If you're the only user, turn it
+off under **Authentication → Sign In / Providers → Email → Confirm email**. If you keep it on, set
+**Authentication → URL Configuration → Site URL** to your deployed URL so the email link points there.
 
 **Stop strangers signing up:** once your account exists, disable **Authentication → Sign In / Providers →
 Allow new users to sign up**.
 
-## 2. Host the website (free)
+</details>
 
-The app is a static site. Any of these work; Vercel shown here:
+## 🌐 Deploy for free
+
+The app is a static site, so any static host works. With Vercel:
 
 1. Push this folder to a GitHub repository (private is fine).
-2. On <https://vercel.com>, **Add New → Project**, import the repo. Framework preset: **Vite**.
-3. Under **Environment Variables**, optionally add `VITE_CURRENCY`.
+2. On <https://vercel.com>, choose **Add New → Project** and import the repo. Framework preset: **Vite**.
+3. Optionally add the `VITE_CURRENCY` environment variable.
 4. Deploy. Every push to the main branch redeploys.
 
-Netlify or Cloudflare Pages: build command `npm run build`, output directory `dist`, same optional environment variable.
+For Netlify or Cloudflare Pages, use build command `npm run build` and output directory `dist`.
 
-**On your phone:** open the site and choose *Add to Home screen* (Android Chrome / iOS Safari Share menu).
-It opens full screen like an app. Data refreshes whenever you switch back to it.
+**On your phone:** open the site and choose *Add to Home screen* (Android Chrome, or the iOS Safari Share menu).
+Data refreshes whenever you switch back to the app.
 
-## 3. Back up to your PC
+## 💾 Backups
 
 ### Manual
 
-**Settings → Download backup (JSON)** saves everything. **Restore from backup…** loads a backup file back in
-(it overwrites matching entries and never deletes anything). **Export spreadsheet (CSV)** gives you a file you
-can open in Excel.
+In **Settings**: *Download backup (JSON)* saves everything. *Restore from backup…* loads a file back in (it
+overwrites matching entries and never deletes anything). *Export spreadsheet (CSV)* gives you a file for Excel.
 
-### Automatic daily backup (Windows)
+### Automatic daily backup (Windows, Supabase mode)
 
 1. Copy `.env.backup.example` to `.env.backup` and fill in the Supabase URL, anon key, and your app email and
-   password. This file is git-ignored; it stays on your PC.
-2. Test it: `npm run backup` → writes `backups/vehicle-log-YYYY-MM-DD.json`.
-3. Schedule it (runs daily at 21:00, or at next start-up if the PC was off):
+   password. The file is git-ignored and stays on your PC.
+2. Test it: `npm run backup` writes `backups/vehicle-log-YYYY-MM-DD.json`.
+3. Schedule it (daily at 21:00, or at next start-up if the PC was off):
 
    ```powershell
    powershell -ExecutionPolicy Bypass -File scripts\schedule-backup.ps1
-   # different time: ... -File scripts\schedule-backup.ps1 -Time "08:30"
+   # different time:
+   powershell -ExecutionPolicy Bypass -File scripts\schedule-backup.ps1 -Time "08:30"
    ```
 
-Old backups beyond `BACKUP_KEEP` (default 60) are deleted. Put `BACKUP_DIR` inside OneDrive/Google Drive if you
-also want an off-PC copy. Output is logged to `backups/backup.log`.
+| Setting | Default | Purpose |
+|---|---|---|
+| `BACKUP_DIR` | `./backups` | Where backups are written. Point it inside OneDrive or Google Drive for an off-PC copy. |
+| `BACKUP_KEEP` | `60` | Older backups beyond this count are deleted. |
 
-A side benefit: Supabase pauses free projects after about a week with no activity. The daily backup counts as
-activity and keeps it awake. (If it does pause, resume it from the Supabase dashboard; no data is lost.)
+Output is logged to `backups/backup.log`. As a side benefit, the daily run counts as activity and keeps a free
+Supabase project from pausing.
 
-### Restoring after a disaster
+**Restoring after a disaster:** create a new Supabase project, run `supabase/schema.sql`, update the URL and key in
+**Settings → Storage**, sign up again, then use **Settings → Restore from backup…** with your latest JSON file.
 
-If the Supabase project is lost: create a new project, run `supabase/schema.sql`, update the URLs and keys,
-sign up again, then use **Settings → Restore from backup…** with your latest JSON file.
+## 🧱 Tech stack
 
-## Project layout
+- **UI:** React 18 + TypeScript, bundled with Vite
+- **On-device storage:** `@sqlite.org/sqlite-wasm` in a Web Worker, persisted to the origin-private file system
+- **Cloud storage (optional):** Supabase (Postgres, auth and row-level security)
+- **Offline and install:** service worker and web app manifest
+- **Tests:** Vitest
 
-| Path | Purpose |
-|---|---|
-| `src/lib/calc.ts` | Efficiency, reminder due-status and cost calculations (unit-tested) |
-| `src/lib/db.ts` | Data access: Supabase, or on-device SQLite (`src/lib/sqlite/`) |
-| `src/components/` | Screens: Overview, Fuel, Service, Reminders, Reports, Settings |
-| `supabase/schema.sql` | Tables and row-level security |
-| `scripts/backup.mjs` | Local backup script |
-| `scripts/schedule-backup.ps1` | Registers the daily Windows scheduled task |
+## 📁 Project layout
+
+```text
+.
+├── src/
+│   ├── App.tsx              # Shell, navigation, vehicle picker
+│   ├── components/          # Overview, Fuel, Service, Reminders, Reports, Settings views
+│   └── lib/
+│       ├── calc.ts          # Efficiency, reminder status and cost maths (unit-tested)
+│       ├── db.ts            # Data access: on-device SQLite or Supabase
+│       ├── merge.ts         # Conflict handling when copying data between storages
+│       ├── sqlite/          # sqlite-wasm client, worker and store
+│       └── types.ts         # Vehicle, FuelLog, ServiceLog, Reminder, backup format
+├── supabase/schema.sql      # Tables and row-level security
+├── scripts/
+│   ├── backup.mjs           # Local backup script
+│   └── schedule-backup.ps1  # Registers the daily Windows scheduled task
+└── public/                  # Icon, web manifest, service worker
+```
