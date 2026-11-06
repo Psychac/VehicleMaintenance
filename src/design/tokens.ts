@@ -93,6 +93,8 @@ export interface Palette {
   bgGrouped: string;
   bgElevated: string;
   bgElevated2: string;
+  /** A control raised above elevated2 (segmented pill). Lighter in both themes. */
+  bgRaised: string;
   labelPrimary: string;
   labelSecondary: string;
   labelTertiary: string;
@@ -110,6 +112,8 @@ export interface Palette {
   /** Non-text series colour for the second chart series (fuel uses accent). */
   chartOther: string;
   scrim: string;
+  /** Switch thumb: white in both themes, like the platform control. */
+  thumb: string;
   /** Highlight fill for a pressed row (label colour at ~7%). */
   pressFill: string;
 }
@@ -120,6 +124,7 @@ export const colors: { light: Palette; dark: Palette } = {
     bgGrouped: '#F3F1EC',
     bgElevated: '#FFFFFF',
     bgElevated2: '#F3F1EC',
+    bgRaised: '#FFFFFF',
     labelPrimary: 'rgb(28 27 24 / 0.92)',
     labelSecondary: 'rgb(60 58 52 / 0.78)',
     labelTertiary: 'rgb(60 58 52 / 0.30)',
@@ -136,6 +141,7 @@ export const colors: { light: Palette; dark: Palette } = {
     destructiveTint: 'rgb(188 46 37 / 0.12)',
     chartOther: '#8A867C',
     scrim: 'rgb(20 18 14 / 0.40)',
+    thumb: '#FFFFFF',
     pressFill: 'rgb(28 27 24 / 0.07)',
   },
   dark: {
@@ -143,6 +149,7 @@ export const colors: { light: Palette; dark: Palette } = {
     bgGrouped: '#0B0B0A',
     bgElevated: '#1D1C1A',
     bgElevated2: '#2A2926',
+    bgRaised: '#3B3A36',
     labelPrimary: 'rgb(255 252 246 / 0.96)',
     labelSecondary: 'rgb(235 232 222 / 0.62)',
     labelTertiary: 'rgb(235 232 222 / 0.30)',
@@ -159,6 +166,7 @@ export const colors: { light: Palette; dark: Palette } = {
     destructiveTint: 'rgb(255 107 96 / 0.16)',
     chartOther: '#8D8A80',
     scrim: 'rgb(0 0 0 / 0.40)',
+    thumb: '#FFFFFF',
     pressFill: 'rgb(255 252 246 / 0.08)',
   },
 };
@@ -231,6 +239,8 @@ export const motionValues = {
   pressDimIcon: 0.6,
   /** Primary/secondary button brightness while pressed. */
   pressBrightness: 0.92,
+  /** Pointer-hover lift on filled controls (hover-capable devices only). */
+  hoverBrightness: 1.06,
   enterScale: 0.96,
   exitScale: 0.96,
   /** Enter offsets are 8-24pt, not whole screens. */
@@ -242,6 +252,8 @@ export const motionValues = {
   /** Skeleton: delay before showing (S8: nothing under ~300 ms) and shimmer loop. */
   loadingDelayMs: 300,
   shimmerMs: 1200,
+  /** Indeterminate spinner rotation (linear is allowed for indeterminate progress). */
+  spinnerMs: 800,
   toastMs: 4000,
   undoMs: 5000,
   /** Reduce Motion crossfade replaces slides and zooms (S5.6). */
@@ -342,7 +354,7 @@ export function buildTokenCss(): string {
     root.push(`--motion-${kebab(k)}:${v}${unit};`);
   }
   root.push('--motion-distance:1;', '--opacity-disabled:0.4;', `--shake-distance:${shake.distance}px;--shake-ms:${shake.ms}ms;`);
-  root.push('--hairline:1px;', '--focus-width:2px;', '--focus-offset:2px;', `--material-filter:${MATERIAL_FILTER};`);
+  root.push('--hairline:1px;', '--focus-width:2px;', '--focus-offset:2px;', '--ring-input:1.5px;', `--material-filter:${MATERIAL_FILTER};`);
 
   const light = paletteVars(colors.light, elevation.light, material.light);
   const dark = paletteVars(colors.dark, elevation.dark, material.dark);

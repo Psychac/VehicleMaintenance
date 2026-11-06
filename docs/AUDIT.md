@@ -7,7 +7,7 @@ Plan state: `[x]` done, `[ ]` to do.
 
 - [x] 1. Audit
 - [x] 2. Tokens (`src/design/tokens.ts`; accent petrol teal; 4 tabs; `motion` approved)
-- [ ] 3. Components
+- [x] 3. Components (`src/ui/`, dev gallery at `/#gallery`)
 - [ ] 4. Screens
 - [ ] 5. Motion pass
 - [ ] 6. Verify

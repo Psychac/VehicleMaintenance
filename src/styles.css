@@ -1,3 +1,4 @@
+@layer legacy {
 :root {
   color-scheme: light;
   --bg: #f5f5f9;
@@ -1574,4 +1575,6 @@ button.primary {
 button.primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #7b7ff6 0%, #5457e8 100%);
   border-color: transparent;
+}
+
 }

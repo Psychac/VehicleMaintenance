@@ -1,15 +1,16 @@
 import type { ReactNode } from 'react';
 
 /** Small stroke icon set (24px grid) so the UI needs no icon font or image requests. */
-function Svg({ children, size = 20 }: { children: ReactNode; size?: number }) {
+function Svg({ children, size = 20, filled = false }: { children: ReactNode; size?: number; filled?: boolean }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? 'currentColor' : 'none'}
+      fillOpacity={filled ? 0.22 : undefined}
       stroke="currentColor"
-      strokeWidth="1.8"
+      style={{ strokeWidth: 'var(--icon-stroke)' }}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -20,7 +21,8 @@ function Svg({ children, size = 20 }: { children: ReactNode; size?: number }) {
   );
 }
 
-type P = { size?: number };
+/** `filled` marks the selected state (S3.6): same glyph, tinted fill. */
+type P = { size?: number; filled?: boolean };
 
 export const IconHome = (p: P) => (
   <Svg {...p}>
@@ -122,5 +124,35 @@ export const IconClock = (p: P) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="9" />
     <path d="M12 7v5l3 2" />
+  </Svg>
+);
+
+export const IconChevronRight = (p: P) => (
+  <Svg {...p}>
+    <path d="m9 6 6 6-6 6" />
+  </Svg>
+);
+export const IconMore = (p: P) => (
+  <Svg {...p}>
+    <circle cx="5" cy="12" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+  </Svg>
+);
+export const IconList = (p: P) => (
+  <Svg {...p}>
+    <path d="M8 6h12M8 12h12M8 18h12" />
+    <path d="M4 6h.01M4 12h.01M4 18h.01" />
+  </Svg>
+);
+export const IconOffline = (p: P) => (
+  <Svg {...p}>
+    <path d="M2 8.8a15 15 0 0 1 4-2.4M22 8.8a15 15 0 0 0-8.5-3.7M5 12.9a10 10 0 0 1 3.2-2M19 12.9a10 10 0 0 0-3-2M8.5 16.4a5 5 0 0 1 7 0M12 20h.01M3 3l18 18" />
+  </Svg>
+);
+export const IconInfo = (p: P) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
   </Svg>
 );
