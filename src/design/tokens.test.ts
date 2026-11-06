@@ -46,8 +46,8 @@ describe.each([
     expect(ratio(p, 'destructiveFg', 'destructive')).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('status text on its own tint (over elevated) passes 4.5:1', () => {
-    const under = resolve(p.bgElevated);
+  it.each(['bgPrimary', 'bgElevated', 'bgElevated2'] as const)('status text on its own tint (over %s) passes 4.5:1', (surface) => {
+    const under = resolve(p[surface]);
     for (const [fg, tint] of [
       ['accent', 'accentTint'],
       ['success', 'successTint'],
@@ -55,7 +55,7 @@ describe.each([
       ['destructive', 'destructiveTint'],
     ] as const) {
       const bg = resolve(p[tint], under);
-      expect(contrast(resolve(p[fg]), bg), `${fg} on ${tint}`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(resolve(p[fg]), bg), `${fg} on ${tint} over ${surface}`).toBeGreaterThanOrEqual(4.5);
     }
   });
 

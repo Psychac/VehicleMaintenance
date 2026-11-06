@@ -103,7 +103,7 @@ const AUDIT = `(() => {
   return JSON.stringify(out);
 })()`;
 
-const ALLOWED_PX = new Set([11, 12, 13, 14, 15, 16, 18, 21, 26, 32]);
+const ALLOWED_PX = new Set([11, 12, 13, 14, 15, 16, 18, 21, 26, 32, 44]);
 
 /* ------------------------------------------------------------ run helpers */
 async function waitFor(ev, expr, ms = 8000) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await ev(expr).catch(() => false)) return true; await sleep(100); } return false; }
@@ -248,16 +248,27 @@ for (const [name, cfg] of Object.entries(configs)) {
   s.close();
 }
 if (process.env.SKIP_PERF) { fs.writeFileSync(OUT, JSON.stringify(report, null, 1)); console.log('wrote', OUT); process.exit(0); }
-// Perf on a throttled CPU (4x ≈ mid-range phone), seeded, production build.
-{
-  const s = await launch({ width: 390, cpu: 4 });
-  try { await s.send('Page.navigate', { url: BASE + '/#home' }); await sleep(2500); await seed(s); report.perf4x = await perf(s); } catch (e) { report.perf4x = { error: String(e) }; }
-  s.close();
+// Perf, seeded, on the production build: 4x CPU throttle (rough mid-range phone) and unthrottled.
+// Each run retries (fresh browser) because the scripted flow can race a slow cold start.
+async function perfRun(opts) {
+  let last;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const s = await launch(opts);
+    try {
+      await s.send('Page.navigate', { url: BASE + '/#home' });
+      await sleep(2500);
+      await seed(s);
+      const out = await perf(s);
+      s.close();
+      return out;
+    } catch (e) {
+      last = { error: String(e.stack || e), pageErrors: s.errors, attempt };
+      s.close();
+    }
+  }
+  return last;
 }
-{
-  const s = await launch({ width: 390 });
-  try { await s.send('Page.navigate', { url: BASE + '/#home' }); await sleep(2500); await seed(s); report.perf1x = await perf(s); } catch (e) { report.perf1x = { error: String(e.stack || e), pageErrors: s.errors }; }
-  s.close();
-}
+report.perf4x = await perfRun({ width: 390, cpu: 4 });
+report.perf1x = await perfRun({ width: 390 });
 fs.writeFileSync(OUT, JSON.stringify(report, null, 1));
 console.log('wrote', OUT);

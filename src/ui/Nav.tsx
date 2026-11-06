@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { layout, spring } from '../design/tokens';
+import { spring } from '../design/tokens';
 import { usePress } from './press';
 
 export interface NavItem<T extends string = string> {
@@ -92,9 +92,10 @@ export function AppNav<T extends string>({
 }
 
 /**
- * Large title on root screens that collapses into an inline title as the user scrolls; the bar
- * gains material and a hairline at the same moment (transparent at scroll top). Pushed screens
- * use `inline`. At most two trailing actions.
+ * Compact header (one pattern for every screen): title left-aligned with an optional line of
+ * context under it, actions at the end. Transparent at the top of the page; gains material and a
+ * hairline as soon as content scrolls under it. Pushed screens pass `inline` plus a back button
+ * as `leading`. At most two trailing actions.
  */
 export function ScreenHeader({
   title,
@@ -107,37 +108,33 @@ export function ScreenHeader({
   inline?: boolean;
   leading?: ReactNode;
   trailing?: ReactNode;
-  /** One line of context under the large title. */
+  /** One line of context under the title. */
   subtitle?: string;
 }) {
-  const sentinel = useRef<HTMLDivElement>(null);
-  const [scrolled, setScrolled] = useState(inline);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    if (inline || !sentinel.current) return;
-    const io = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting), { threshold: 0, rootMargin: `-${layout.navBar}px 0px 0px 0px` });
-    io.observe(sentinel.current);
-    return () => io.disconnect();
-  }, [inline]);
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => setScrolled(window.scrollY > 4));
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', update);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
   return (
-    <>
-      <header className="ui-navbar" data-scrolled={scrolled || undefined}>
-        <div className="ui-navbar-side">{leading}</div>
-        <span className="ui-navbar-title" aria-hidden={!scrolled}>
-          {title}
-        </span>
-        <div className="ui-navbar-side" data-end>
-          {trailing}
-        </div>
-      </header>
-      {!inline && (
-        <div className="ui-large-title">
-          <h1 className="t-large-title">{title}</h1>
-          {subtitle && <p className="ui-large-subtitle">{subtitle}</p>}
-          <div ref={sentinel} className="ui-sentinel" aria-hidden="true" />
-        </div>
-      )}
-    </>
+    <header className="ui-header" data-scrolled={scrolled || undefined} data-inline={inline || undefined}>
+      {leading && <div className="ui-header-lead">{leading}</div>}
+      <div className="ui-header-text">
+        <h1 className="ui-header-title">{title}</h1>
+        {subtitle && <p className="ui-header-sub">{subtitle}</p>}
+      </div>
+      {trailing && <div className="ui-header-trail">{trailing}</div>}
+    </header>
   );
 }

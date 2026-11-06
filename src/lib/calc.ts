@@ -140,3 +140,21 @@ export function costsByCategory(fuel: FuelLog[], service: ServiceLog[]): { categ
   for (const s of service) totals.set(s.category, (totals.get(s.category) ?? 0) + Number(s.cost));
   return [...totals.entries()].map(([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total);
 }
+
+/**
+ * How much of a reminder's interval is used, 0-1 (1 = due or overdue). Uses whichever of the
+ * distance and time intervals is further along. Null when nothing is being tracked yet.
+ */
+export function reminderProgress(r: Reminder, s: ReminderStatus): { value: number; tone: 'ok' | 'soon' | 'overdue' } | null {
+  const used: number[] = [];
+  if (s.remainingKm !== null && r.interval_km) used.push((Number(r.interval_km) - s.remainingKm) / Number(r.interval_km));
+  if (s.remainingDays !== null && r.interval_months) {
+    const total = Number(r.interval_months) * 30.4375;
+    used.push((total - s.remainingDays) / total);
+  }
+  if (!used.length) return null;
+  return {
+    value: Math.min(1, Math.max(0, Math.max(...used))),
+    tone: s.state === 'overdue' ? 'overdue' : s.state === 'soon' ? 'soon' : 'ok',
+  };
+}

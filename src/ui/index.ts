@@ -15,6 +15,7 @@ export { Roll } from './Roll';
 export { AppNav, ScreenHeader, type NavItem } from './Nav';
 export { Segmented, type SegmentOption } from './Segmented';
 export { Sheet, type SheetProps } from './Sheet';
+export { StatGrid, type StatItem } from './Stats';
 export { Skeleton, SkeletonRow, SkeletonRows, useDelayedFlag } from './Skeleton';
 export { ToastProvider, useToast, type ToastInput } from './Toast';
 export { useMediaQuery } from './useMediaQuery';

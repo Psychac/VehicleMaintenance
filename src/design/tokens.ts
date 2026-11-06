@@ -52,15 +52,17 @@ export const breakpoints = {
 export const radius = { xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 } as const;
 
 /* ------------------------------------------------------------------ */
-/* Typography (S3.1): Geist (sans) + Geist Mono (odometer only), scaled in rem   */
+/* Typography (S3.1): Geist, scaled in rem                                  */
 /* ------------------------------------------------------------------ */
 
 // Self-hosted via @fontsource-variable (src/design/fonts.ts): works offline, no third-party request.
 const FONT_SANS = '"Geist Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-const FONT_MONO = '"Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+const FONT_MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
 /** [size px, line-height px, weight, tracking em] */
 export const type = {
+  /** Hero figure (the odometer). Tabular figures, tight tracking. */
+  display: [44, 48, 500, -0.03],
   largeTitle: [32, 38, 600, -0.025],
   title1: [26, 32, 600, -0.02],
   title2: [21, 27, 600, -0.015],
@@ -135,11 +137,11 @@ export const colors: { light: Palette; dark: Palette } = {
     accentTint: 'rgb(13 92 99 / 0.10)',
     success: '#3F6A14',
     successTint: 'rgb(63 106 20 / 0.12)',
-    warning: '#9A5A00',
-    warningTint: 'rgb(154 90 0 / 0.13)',
-    destructive: '#BC2E25',
+    warning: '#8A5000',
+    warningTint: 'rgb(138 80 0 / 0.13)',
+    destructive: '#B02A21',
     destructiveFg: '#FFFFFF',
-    destructiveTint: 'rgb(188 46 37 / 0.12)',
+    destructiveTint: 'rgb(176 42 33 / 0.12)',
     chartOther: '#7D8C8E',
     scrim: 'rgb(10 20 22 / 0.40)',
     thumb: '#FFFFFF',
@@ -162,9 +164,9 @@ export const colors: { light: Palette; dark: Palette } = {
     successTint: 'rgb(155 203 106 / 0.16)',
     warning: '#FFB340',
     warningTint: 'rgb(255 179 64 / 0.16)',
-    destructive: '#FF6B60',
+    destructive: '#FF7A70',
     destructiveFg: '#1A0604',
-    destructiveTint: 'rgb(255 107 96 / 0.16)',
+    destructiveTint: 'rgb(255 122 112 / 0.16)',
     chartOther: '#7F8F91',
     scrim: 'rgb(0 0 0 / 0.45)',
     thumb: '#FFFFFF',

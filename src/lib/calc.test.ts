@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addMonths, averageEfficiency, costsByCategory, fuelEfficiency, monthlyCosts, reminderStatus } from './calc';
+import { addMonths, averageEfficiency, costsByCategory, fuelEfficiency, monthlyCosts, reminderProgress, reminderStatus } from './calc';
 import type { FuelLog, Reminder } from './types';
 
 const fuel = (odometer: number, litres: number, full_tank = true, date = '2026-01-01', total_cost = 100): FuelLog => ({
@@ -121,5 +121,27 @@ describe('costs', () => {
       { category: 'repair', total: 100 },
       { category: 'fuel', total: 40 },
     ]);
+  });
+});
+
+describe('reminderProgress', () => {
+  const base: Reminder = { id: 'r', vehicle_id: 'v', title: 'Oil', interval_km: 5000, last_done_odometer: 1000, last_done_date: '2026-01-01' };
+  it('is the used fraction of the distance interval', () => {
+    const p = reminderProgress(base, reminderStatus(base, 2250, '2026-01-02'));
+    expect(p?.value).toBeCloseTo(0.25);
+    expect(p?.tone).toBe('ok');
+  });
+  it('uses whichever interval is further along', () => {
+    const r: Reminder = { ...base, interval_months: 12 };
+    const p = reminderProgress(r, reminderStatus(r, 1500, '2026-10-01'));
+    expect(p!.value).toBeGreaterThan(0.7); // 9 of 12 months beats 10% of the km
+  });
+  it('clamps to 1 and flags overdue', () => {
+    const p = reminderProgress(base, reminderStatus(base, 9000, '2026-01-02'));
+    expect(p).toEqual({ value: 1, tone: 'overdue' });
+  });
+  it('is null when nothing is tracked yet', () => {
+    const r: Reminder = { ...base, last_done_odometer: null, last_done_date: null };
+    expect(reminderProgress(r, reminderStatus(r, 2000, '2026-01-02'))).toBeNull();
   });
 });

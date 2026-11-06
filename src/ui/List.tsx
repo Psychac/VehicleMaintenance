@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, animate, motion, useMotionValue } from 'motion/react';
+import { AnimatePresence, animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react';
 import { IconChevronRight } from '../components/icons';
 import { spring, springs, fadeMotion } from '../design/tokens';
 import { useContextMenu, type MenuAction } from './ContextMenu';
@@ -81,6 +81,8 @@ export interface RowProps {
    * swipe action must also exist in `menu` or the row's detail, as a visible alternative.
    */
   swipe?: { leading?: SwipeAction; trailing?: SwipeAction };
+  /** Thin line under the subtitle: how much of an interval is used (0-1). Colour follows the tone. */
+  progress?: { value: number; tone: 'ok' | 'soon' | 'overdue' };
 }
 
 type Handlers = Record<string, ((e: never) => void) | undefined>;
@@ -103,7 +105,7 @@ function merge(...sets: Handlers[]): Record<string, (e: unknown) => void> {
  * hover (pointer devices only), selected (accent label), disabled.
  * Title + subtitle + value is the most a row may carry (3 text styles).
  */
-export function Row({ leading, title, subtitle, value, trailing, onPress, chevron, disabled, selected, haptic: hapticKind = false, menu: menuActions, swipe }: RowProps) {
+export function Row({ leading, title, subtitle, value, trailing, onPress, chevron, disabled, selected, haptic: hapticKind = false, menu: menuActions, swipe, progress }: RowProps) {
   const live = useContext(LiveContext);
   const press = usePress<HTMLButtonElement>(disabled);
   const ctx = useContextMenu(disabled ? undefined : menuActions);
@@ -112,6 +114,10 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
   const x = useMotionValue(0);
   const [width, setWidth] = useState(0);
   const [armed, setArmed] = useState<'leading' | 'trailing' | null>(null);
+  // The coloured action panels sit under the row; only show them while the row is displaced, so they
+  // never peek out at the row's rounded corners.
+  const [revealed, setRevealed] = useState(false);
+  useMotionValueEvent(x, 'change', (v) => setRevealed(Math.abs(v) > 1));
   const dragged = useRef(false);
   const canSwipe = !disabled && !!(swipe?.leading || swipe?.trailing);
 
@@ -139,6 +145,11 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
       {chevron && (
         <span className="ui-row-chevron" aria-hidden="true">
           <IconChevronRight size={16} />
+        </span>
+      )}
+      {progress && (
+        <span className="ui-progress" data-tone={progress.tone} aria-hidden="true">
+          <span className="ui-progress-fill" style={{ transform: 'scaleX(' + progress.value + ')' }} />
         </span>
       )}
     </>
@@ -172,7 +183,7 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
 
   const swiped = canSwipe ? (
     <>
-      <div className="ui-swipe-under" aria-hidden="true">
+      <div className="ui-swipe-under" aria-hidden="true" data-revealed={revealed || undefined}>
         <div className="ui-swipe-action" data-tone={swipe?.leading?.tone} data-side="leading" data-armed={armed === 'leading' || undefined}>
           {swipe?.leading && (
             <span className="ui-swipe-label">

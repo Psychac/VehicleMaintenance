@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { IconBell, IconCheck, IconPlus, IconTrash } from '../components/icons';
-import type { ReminderState } from '../lib/calc';
+import { reminderProgress, type ReminderState } from '../lib/calc';
 import type { Reminder } from '../lib/types';
 import { Button, EmptyState, Fade, ListGroup, Row, ScreenHeader, SkeletonRows, useCompletion, useToast } from '../ui';
 import ReminderSheet from './ReminderSheet';
@@ -65,6 +65,7 @@ export default function Reminders({ scope, loading, reload }: { scope: VehicleSc
                       key={r.id}
                       title={r.title}
                       subtitle={dueText(s)}
+                      progress={reminderProgress(r, s) ?? undefined}
                       onPress={() => open(r)}
                       chevron
                       menu={[

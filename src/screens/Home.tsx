@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { IconPlus, IconTrash } from '../components/icons';
-import { averageEfficiency, fuelEfficiency } from '../lib/calc';
+import { averageEfficiency, fuelEfficiency, reminderProgress } from '../lib/calc';
 import { fmtDec, fmtKm, fmtMoney, fmtNum, fmtRelDate, today } from '../lib/format';
 import type { FuelLog, ServiceLog } from '../lib/types';
-import { Button, Fade, ListGroup, Roll, Row, ScreenHeader, Skeleton, SkeletonRows, useToast } from '../ui';
+import { Button, Fade, ListGroup, Roll, Row, ScreenHeader, Skeleton, SkeletonRows, StatGrid, useToast } from '../ui';
 import FuelSheet from './FuelSheet';
 import ServiceSheet from './ServiceSheet';
 import { ReminderBadge, deleteWithUndo, dueText, odometerOf, reminderRows, vehicleDetails, type Editing, type VehicleScope } from './shared';
@@ -92,7 +92,7 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
                 ) : (
                   [
                     ...attention.slice(0, 3).map(({ r, s }) => (
-                      <Row key={r.id} title={r.title} subtitle={dueText(s)} trailing={<ReminderBadge status={s} />} onPress={goReminders} chevron />
+                      <Row key={r.id} title={r.title} subtitle={dueText(s)} progress={reminderProgress(r, s) ?? undefined} trailing={<ReminderBadge status={s} />} onPress={goReminders} chevron />
                     )),
                     ...(attention.length > 3
                       ? [<Row key="more" title="All reminders" value={`${attention.length} need attention`} onPress={goReminders} chevron />]
@@ -101,13 +101,17 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
                 )}
               </ListGroup>
 
-              <ListGroup header="Summary" footer={avg ? undefined : 'Mileage appears after two full-tank fill-ups.'}>
-                <Row title="Average mileage" value={avg ? <Roll text={`${fmtDec(avg)} km/L`} /> : '—'} />
-                {lastTank !== null && <Row title="Last tank" value={<Roll text={`${fmtDec(lastTank)} km/L`} />} />}
-                <Row title="This month" value={<Roll text={fmtMoney(monthSpend)} />} />
-                <Row title="Cost per km" value={driven > 0 && totalSpend > 0 ? <Roll text={fmtMoney(totalSpend / driven)} /> : '—'} />
-                <Row title="Total spent" value={<Roll text={fmtMoney(totalSpend)} />} />
-              </ListGroup>
+              <StatGrid
+                header="Summary"
+                footer={avg ? undefined : 'Mileage appears after two full-tank fill-ups.'}
+                items={[
+                  { label: 'Average mileage', value: avg ? <Roll text={`${fmtDec(avg)} km/L`} /> : '—' },
+                  { label: 'Last tank', value: lastTank !== null ? <Roll text={`${fmtDec(lastTank)} km/L`} /> : '—' },
+                  { label: 'This month', value: <Roll text={fmtMoney(monthSpend)} /> },
+                  { label: 'Cost per km', value: driven > 0 && totalSpend > 0 ? <Roll text={fmtMoney(totalSpend / driven)} /> : '—' },
+                  { label: 'Total spent', value: <Roll text={fmtMoney(totalSpend)} /> },
+                ]}
+              />
 
               {recent.length > 0 && (
                 <ListGroup header="Recent" live>

@@ -105,3 +105,27 @@ I haven't done these, because they need measuring on a real device first: the th
 - `public/icon.svg` still has the old indigo; the maskable/PNG icon set is untouched.
 - The service worker is still network-first, so a slow connection delays the shell instead of showing the cache immediately.
 - Haptics exist only where the Vibration API does (Android).
+
+---
+
+## Re-run after the "Clean" redesign (components + screens)
+
+Same verifier, same 5 configurations, production build.
+
+| Check | Result |
+|---|---|
+| Contrast AA, every rendered text element, both themes, all screens and sheets | **Pass.** One miss was found and fixed ("Due soon" at 4.42:1); the token test now checks every status colour on its tint over every surface (75 tests) |
+| Touch targets >= 44, labels, overflow at 320, clipping at 200% text | **Pass**, 0 findings |
+| Layout shift | **Pass**, 0 |
+| Touch-down feedback in the same frame | **Pass** |
+| Scrolling | **Pass**, no frame over 33 ms (also at 4x) |
+| Tab transitions, 1x | worst frame 50-83 ms in two runs (one tab, first visit), otherwise 17-33 ms. Slightly worse than before the redesign |
+| Cold start, 1x | 0.53-0.90 s across runs (was 0.42 s). Run-to-run noise on this machine is large, so treat as a range |
+| Tap to navigation, 1x | 62-115 ms on the first run, 88-204 ms on the second. **Borderline against the 100 ms target** |
+| 4x CPU throttle | still **fails** cold start (1.5-2.9 s), navigation and tab transitions, as before |
+
+What changed in this pass: flat rows with hairlines instead of grouped boxes, a compact one-row header instead of large titles, an underline switch, a two-column stat block on Home, a reminder progress line, Geist as the one typeface.
+
+Known cost: self-hosted Geist adds ~67 KB (Latin + Latin-extended); the font swaps in after first paint. Preloading the Latin file and code-splitting Reports/Storage are the next performance levers.
+
+Not yet done for the distinctiveness check: the "hide the logo" review on a real phone, and the progress line does not animate when a reminder moves between groups (the row remounts), only when its value changes in place.
