@@ -474,6 +474,30 @@ async function barProbe() {
   s.close();
   process.exit(0);
 }
+/* Does a transition ever make the page wider than the viewport? (horizontal scrollbar) */
+async function widthProbe() {
+  for (const width of [390, 1100]) {
+    const s = await launch({ width });
+    await s.send('Page.navigate', { url: BASE + '/#home' }); await sleep(2500);
+    await seed(s);
+    await s.send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await s.send('Page.navigate', { url: BASE + '/#home' });
+    await waitFor(s.ev, `!!document.querySelector('.hero-value')`, 20000);
+    await waitFor(s.ev, `!!document.querySelector('.ui-toast-region')`, 15000);
+    await sleep(1200);
+    const bell = `[...document.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')||'').startsWith('Reminders')&&b.getBoundingClientRect().width>0)`;
+    const back = `[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Back'&&b.getBoundingClientRect().width>0)`;
+    await s.ev(`window.__w=0;const t=()=>{window.__w=Math.max(window.__w,document.documentElement.scrollWidth-innerWidth,document.body.scrollWidth-innerWidth);requestAnimationFrame(t)};t();1`);
+    for (const act of [bell, back, bell, back]) {
+      try { await tap(s, act); } catch (e) { console.log('STATE', await s.ev(`JSON.stringify({hash:location.hash,layers:[...document.querySelectorAll('.ui-screen-layer')].map(l=>{const r=l.getBoundingClientRect();return [Math.round(r.left),Math.round(r.top),Math.round(r.width),l.innerText.replace(/\s+/g,' ').slice(0,40)]}),backs:[...document.querySelectorAll('button')].filter(b=>b.getAttribute('aria-label')==='Back').map(b=>{const r=b.getBoundingClientRect();return [Math.round(r.left),Math.round(r.top),Math.round(r.width)]})})`)); throw e; }
+      await sleep(900);
+    }
+    console.log(width + 'px: max horizontal overflow during push/back/push/back =', await s.ev('window.__w'), 'px');
+    s.close();
+  }
+  process.exit(0);
+}
+if (process.env.WIDTHPROBE) await widthProbe();
 if (process.env.BARPROBE) await barProbe();
 if (process.env.TRANSITIONS) await transitions();
 if (process.env.SMOKE) await smoke();

@@ -32,8 +32,15 @@ p {
   margin: 0;
 }
 
+/* Screens slide sideways during transitions; clip (not hidden, which would break sticky bars) so the
+   moving layer never widens the page or shows a horizontal scrollbar. */
 .app {
   min-height: 100dvh;
+  overflow-x: clip;
+}
+html,
+body {
+  overflow-x: clip;
 }
 
 /* ---------------------------------------------------------------- Layout */
