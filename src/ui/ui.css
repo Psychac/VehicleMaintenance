@@ -1374,3 +1374,23 @@ button.ui-row:disabled,
     transform: none;
   }
 }
+
+/* Crossfade between states of one screen (skeleton, content, Fuel / Service): opacity only. */
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.ui-fade {
+  animation: ui-fade-in var(--fade-standard-ms) var(--ease-fade);
+}
+
+/* Selected tab icon settles from a slightly smaller size with the snappy spring. */
+@keyframes ui-pop {
+  from {
+    transform: scale(0.86);
+  }
+}
+.ui-nav-icon[data-pop] {
+  animation: ui-pop var(--spring-snappy-ms) var(--spring-snappy);
+}

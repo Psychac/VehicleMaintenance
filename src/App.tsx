@@ -22,13 +22,12 @@ import {
   EmptyState,
   IconButton,
   ListGroup,
-  LazyMotion,
-  MotionConfig,
   PullToRefresh,
   ScreenHeader,
   Sheet,
   SkeletonRows,
   ToastProvider,
+  loadMotionWhenIdle,
   useDelayedFlag,
   type NavItem,
 } from './ui';
@@ -45,8 +44,6 @@ const Vehicles = moreScreen('Vehicles') as unknown as React.ComponentType<{ vehi
 const Backup = moreScreen('Backup') as unknown as React.ComponentType<{ data: AllData; reload: () => Promise<void> }>;
 const Storage = moreScreen('Storage') as unknown as React.ComponentType;
 const Account = moreScreen('Account') as unknown as React.ComponentType;
-
-const loadMotionFeatures = () => import('./ui/motionFeatures').then((r) => r.default);
 
 const EMPTY: AllData = { vehicles: [], fuel_logs: [], service_logs: [], reminders: [] };
 const VEHICLE_KEY = 'vehicle-log:selected';
@@ -119,15 +116,11 @@ function useOnline(): boolean {
 
 export default function App() {
   return (
-    <MotionConfig reducedMotion="user">
-      <LazyMotion features={loadMotionFeatures} strict>
-        <ToastProvider>
-          <CompletionProvider>
-            <Root />
-          </CompletionProvider>
-        </ToastProvider>
-      </LazyMotion>
-    </MotionConfig>
+    <ToastProvider>
+      <CompletionProvider>
+        <Root />
+      </CompletionProvider>
+    </ToastProvider>
   );
 }
 
@@ -194,6 +187,8 @@ function Root() {
   // Fetch the on-demand screens once the first screen is up and the browser is idle.
   useEffect(() => {
     if (!signedIn) return;
+    // The animation code arrives once the first screen is up; it is also requested on demand.
+    loadMotionWhenIdle();
     const run = () => {
       void import('./screens/Reports');
       void import('./screens/More');

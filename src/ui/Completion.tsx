@@ -1,8 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { AnimatePresence, m } from 'motion/react';
-import { spring, fadeMotion } from '../design/tokens';
 import { haptic } from './haptics';
+import { loadMotion, useMotionParts } from './motionLoader';
 
 const CompletionContext = createContext<() => void>(() => {});
 
@@ -17,10 +15,12 @@ const HOLD_MS = 1000;
  * ordinary saves stay silent.
  */
 export function CompletionProvider({ children }: { children: ReactNode }) {
+  const parts = useMotionParts();
   const [n, setN] = useState(0);
   const [shown, setShown] = useState(false);
 
   const celebrate = useCallback(() => {
+    void loadMotion();
     haptic('success');
     setN((x) => x + 1);
     setShown(true);
@@ -37,33 +37,7 @@ export function CompletionProvider({ children }: { children: ReactNode }) {
   return (
     <CompletionContext.Provider value={value}>
       {children}
-      {typeof document !== 'undefined' &&
-        createPortal(
-          <div className="ui-completion-region" aria-hidden="true">
-            <AnimatePresence>
-              {shown && (
-                <m.div
-                  key={n}
-                  className="ui-completion"
-                  initial={{ opacity: 0, scale: 0.6 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96, transition: fadeMotion.exit }}
-                  transition={{ scale: spring.bouncy, opacity: fadeMotion.fast }}
-                >
-                  <svg viewBox="0 0 24 24" className="ui-completion-check" fill="none">
-                    <m.path
-                      d="M5 12.5l4.5 4.5L19 7.5"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ ...fadeMotion.draw, delay: 0.1 }}
-                    />
-                  </svg>
-                </m.div>
-              )}
-            </AnimatePresence>
-          </div>,
-          document.body
-        )}
+      {parts && <parts.CompletionView shown={shown} n={n} />}
     </CompletionContext.Provider>
   );
 }

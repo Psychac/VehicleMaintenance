@@ -163,3 +163,29 @@ Audit after the change: **no regressions**, 0 contrast / target-size / label / o
 - a service-worker precache so a repeat visit skips the network for the shell.
 
 **Status against Section 11:** passes on a recent device (everything above, "1x"). On the 4x stand-in it still misses cold start (1.0-1.45 s vs 1 s), navigation start (up to 457 ms on the first visit to a screen) and transition smoothness (first visit to Log). That throttle is an approximation; confirming on a real mid-range Android phone is still needed before calling it done.
+
+---
+
+## Performance pass, round 2: animation code off the first-paint path
+
+The animation library (`motion`) is no longer in the first bundle. The first screen paints with plain elements; one chunk (`motionParts`, 82 KB / 29 KB gzip) holding every motion-driven part (screen transitions, sheets, toasts, context menus, swipe actions, live-list animation, completion moment, pull-to-refresh) loads once the browser is idle after first paint, or immediately when something needs it (opening a sheet, showing a toast). Components use `useMotionParts()` and render a plain fallback until it arrives. `Fade` and the tab-icon pop became CSS-only. The screen that is showing is never remounted: `ScreenTransition` switches to the animated implementation only on the next route change.
+
+| Metric (target) | Before this pass | After, 1x | After, 4x |
+|---|---|---|---|
+| First-paint JS, min / gzip | 294 KB / 96 KB | **214 KB / 69 KB** | same |
+| Cold start to content (< 1 s) | 0.22 s / 1.0-1.45 s (4x) | **0.24 s** | **0.94 s** |
+| First contentful paint | 0.23 s / 1.29 s (4x) | **0.24 s** | **0.92 s** |
+| LCP (< 2 s) | 0.23 s / 1.29 s (4x) | 0.32 s | 1.27 s |
+| Tap to navigation (< 100 ms) | 25-46 ms / 87-457 ms (4x) | 26-75 ms | 98-292 ms |
+| Worst tab-transition frame | 17 ms / 67-500 ms (4x) | 17 ms (50 ms on first visit to Log) | 83-267 ms |
+| Layout shift | 0 | 0 | 0 |
+
+Totals since the start of the performance work: first-paint JS **463 KB / 143 KB gzip -> 214 KB / 69 KB gzip**; 4x cold start **about 2.0 s -> 0.94 s**.
+
+**Interaction smoke test** (`SMOKE=1 node scripts/verify-ui.mjs`, 20 checks, all pass): motion loads after first paint, sheet open/close/focus, header bell -> pushed Reminders -> back, tab crossfade (no slide), segmented bar movement, long-press menu (and it doesn't open the row), swipe-delete with Undo, short swipe springs back, swipe-to-done plays the completion moment, pull-to-refresh mounted, no page errors.
+
+**Status against Section 11:** passes at normal speed. At the 4x stand-in, cold start and first paint now pass; tap-to-navigation (98-292 ms) and the worst transition frames (up to 267 ms on first visits) still miss. Remaining ideas: precompute the token CSS at build time, service-worker precache of the shell, and a lighter first mount of Home. Real-device confirmation is still needed.
+
+## Information architecture change
+
+Reminders moved from a tab to a header bell (with the overdue count) that opens Reminders as a pushed screen from any tab; Reports became a tab. Tab bar: Home, Log, Reports, More. Old `#reminders` and `#more/reports` links still resolve.

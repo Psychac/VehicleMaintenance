@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { IconBell, IconCar, IconChart, IconFuel, IconHome, IconMore, IconPlus, IconWrench } from '../components/icons';
 import {
   AppNav,
@@ -8,9 +8,8 @@ import {
   Card,
   EmptyState,
   IconButton,
+  loadMotion,
   ListGroup,
-  LazyMotion,
-  MotionConfig,
   Row,
   ScreenHeader,
   Segmented,
@@ -277,13 +276,13 @@ function Inner() {
 }
 
 export default function Gallery() {
+  useEffect(() => {
+    void loadMotion();
+  }, []);
   return (
-    <MotionConfig reducedMotion="user">
-      <LazyMotion features={() => import('./motionFeatures').then((r) => r.default)} strict>
-        <ToastProvider>
-          <Inner />
-        </ToastProvider>
-            </LazyMotion>
-    </MotionConfig>
+      <ToastProvider>
+        <Inner />
+      </ToastProvider>
+    
   );
 }

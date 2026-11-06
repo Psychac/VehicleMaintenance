@@ -1,6 +1,4 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
-import { m } from 'motion/react';
-import { spring } from '../design/tokens';
 import { usePress } from './press';
 
 export interface NavItem<T extends string = string> {
@@ -34,17 +32,11 @@ function NavButton<T extends string>({
       aria-label={item.badge ? `${item.label}, ${item.badge} overdue` : undefined}
       onClick={onSelect}
     >
-      <m.span
-        className="ui-nav-icon"
-        // Selecting plays a small symbol-style pop: the icon settles from 0.86 with spring.snappy.
-        key={active ? 'on' : 'off'}
-        initial={active ? { scale: 0.86 } : false}
-        animate={{ scale: 1 }}
-        transition={spring.snappy}
-      >
+      {/* Selecting plays a small symbol-style pop (CSS, spring.snappy): the icon settles from 0.86. */}
+      <span className="ui-nav-icon" key={active ? 'on' : 'off'} data-pop={active || undefined}>
         <Icon size={variant === 'tab' ? 24 : 22} filled={active} />
         {!!item.badge && <span className="ui-nav-badge">{item.badge}</span>}
-      </m.span>
+      </span>
       <span className="ui-nav-label">{item.label}</span>
     </button>
   );

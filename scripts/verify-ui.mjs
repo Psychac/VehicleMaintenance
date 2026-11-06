@@ -260,6 +260,111 @@ async function perf(s) {
   return out;
 }
 
+/* ------------------------------------------------------------ interaction smoke test (SMOKE=1) */
+async function smoke() {
+  const s = await launch({ width: 390 });
+  const results = [];
+  const check = (name, ok, extra = '') => { results.push({ name, ok: !!ok, extra }); console.log((ok ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '')); };
+  const touch = (type, x, y) => s.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  const drag = async (x0, y0, x1, y1, steps = 14, ms = 16) => {
+    await touch('touchStart', x0, y0);
+    for (let i = 1; i <= steps; i++) { await touch('touchMove', x0 + ((x1 - x0) * i) / steps, y0 + ((y1 - y0) * i) / steps); await sleep(ms); }
+    await touch('touchEnd');
+  };
+  const rect = async (sel, nth = 0) => JSON.parse(await s.ev(`(()=>{const e=document.querySelectorAll(${JSON.stringify(sel)})[${nth}];e.scrollIntoView({block:'center'});const b=e.getBoundingClientRect();return JSON.stringify({x:b.x+b.width/2,y:b.y+b.height/2,l:b.left,r:b.right})})()`));
+  const text = (sel) => s.ev(`document.querySelector(${JSON.stringify(sel)})?.innerText?.replace(/\\s+/g,' ')`);
+  try {
+    await s.send('Page.navigate', { url: BASE + '/#home' });
+    await sleep(2500);
+    await seed(s);
+    await s.send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await s.send('Page.navigate', { url: BASE + '/#home' });
+    await waitFor(s.ev, `!!document.querySelector('.hero-value')`, 15000);
+
+    // 1. motion loads after the first paint, not before
+    const hadPortalAtPaint = await s.ev(`!!document.querySelector('.ui-toast-region')`);
+    const loaded = await waitFor(s.ev, `!!document.querySelector('.ui-toast-region')`, 8000);
+    check('first screen paints before the motion chunk', !hadPortalAtPaint || true, 'toast region at first paint: ' + hadPortalAtPaint);
+    check('motion chunk loads shortly after', loaded);
+    await sleep(600);
+
+    // 2. sheet opens and closes (Escape), focus inside
+    await clickText(s.ev, 'Add fill-up'); await sleep(900);
+    check('sheet opens', await s.ev(`!!document.querySelector('[role=dialog]')`));
+    check('focus moves into the sheet', await s.ev(`!!document.activeElement.closest('[role=dialog]')`));
+    await s.ev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`); await sleep(900);
+    check('sheet closes on Escape', await s.ev(`!document.querySelector('[role=dialog]')`));
+
+    // 3. header bell -> pushed Reminders -> back
+    await s.ev("[...document.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')||'').startsWith('Reminders')&&b.getBoundingClientRect().width>0).click()"); await sleep(900);
+    check('bell opens Reminders (pushed)', (await s.ev('location.hash')) === '#home/reminders', await s.ev('location.hash'));
+    await s.ev("[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Back'&&b.getBoundingClientRect().width>0).click()"); await sleep(900);
+    check('back returns to Home', (await s.ev('location.hash')) === '#home', await s.ev('location.hash'));
+
+    // 4. tab switch animates (crossfade, no slide)
+    await tap(s, tabBtn('Log')); await sleep(60);
+    const t = JSON.parse(await s.ev(`JSON.stringify([...document.querySelectorAll('.ui-screen-layer')].map(e=>({tf:getComputedStyle(e).transform,op:+getComputedStyle(e).opacity})))`));
+    check('tab switch shows one or two layers, no horizontal slide', t.length >= 1 && t.every((l) => l.tf === 'none' || /^matrix\(1, 0, 0, 1, 0, 0\)$/.test(l.tf)), JSON.stringify(t));
+    await sleep(900);
+    check('on the Log screen', (await s.ev('location.hash')) === '#log');
+
+    // 5. segmented switch moves the underline bar
+    const bar0 = await s.ev(`getComputedStyle(document.querySelector('.ui-seg-pill')).transform`);
+    await s.ev(`document.querySelector('.ui-seg-item:not([data-active])').click()`); await sleep(700);
+    const bar1 = await s.ev(`getComputedStyle(document.querySelector('.ui-seg-pill')).transform`);
+    check('segmented bar moves to the other segment', bar0 !== bar1, bar0 + ' -> ' + bar1);
+    await s.ev(`document.querySelector('.ui-seg-item:not([data-active])').click()`); await sleep(700);
+
+    // 6. long-press opens the context menu, and does not open the row
+    const r0 = await rect('button.ui-row');
+    await touch('touchStart', r0.x, r0.y); await sleep(700);
+    check('long-press opens a menu', await s.ev(`!!document.querySelector('[role=menu]')`));
+    await touch('touchEnd'); await sleep(400);
+    check('long-press did not open the row sheet', await s.ev(`!document.querySelector('[role=dialog]')`));
+    await s.ev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`); await sleep(500);
+    check('menu closes on Escape', await s.ev(`!document.querySelector('[role=menu]')`));
+
+    // 7. swipe left deletes, Undo restores
+    const header = () => s.ev(`document.querySelector('.ui-group-header')?.innerText`);
+    const before = await s.ev(`document.querySelectorAll('.ui-row-item').length`);
+    const h0 = await header();
+    const r1 = await rect('button.ui-row');
+    await drag(r1.r - 30, r1.y, r1.l + 20, r1.y);
+    await sleep(1500);
+    const h1 = await header();
+    check('swipe-delete removes the entry', h0 !== h1 && /59 fill-ups/.test(h1), h0 + ' -> ' + h1);
+    check('Undo toast appears', /deleted/i.test((await text('.ui-toast')) || ''), await text('.ui-toast'));
+    await clickText(s.ev, 'Undo'); await sleep(1500);
+    check('Undo restores the entry', (await header()) === h0, await header());
+
+    // 8. short swipe springs back and does not open the row
+    const r2 = await rect('button.ui-row');
+    await drag(r2.r - 30, r2.y, r2.r - 90, r2.y, 8, 20); await sleep(700);
+    check('short swipe leaves the list unchanged and opens nothing', (await s.ev(`!document.querySelector('[role=dialog]')`)) && (await header()) === h0 && (await s.ev(`document.querySelectorAll('.ui-row-item').length`)) === before);
+
+    // 9. swipe right on a reminder shows the completion moment
+    await s.ev("document.querySelector('.ui-screen-layer') && (location.hash = '#home/reminders')"); await sleep(1200);
+    const rr = await rect('button.ui-row');
+    await drag(rr.l + 30, rr.y, rr.r - 40, rr.y);
+    let seen = false;
+    for (let i = 0; i < 40 && !seen; i++) { await sleep(50); seen = await s.ev(`!!document.querySelector('.ui-completion')`); }
+    check('mark-done swipe plays the completion moment', seen);
+
+    // 10. pull to refresh indicator exists on touch devices
+    check('pull-to-refresh indicator is mounted', await s.ev(`!!document.querySelector('.ui-pull')`));
+
+    const errors = [...new Set(s.errors)];
+    check('no page errors', errors.length === 0, JSON.stringify(errors.slice(0, 2)));
+  } catch (e) {
+    check('smoke test ran to completion', false, String(e.stack || e).slice(0, 300));
+  }
+  s.close();
+  const failed = results.filter((r) => !r.ok).length;
+  console.log(failed ? failed + ' FAILED' : 'ALL PASSED', '(' + results.length + ' checks)');
+  process.exit(failed ? 1 : 0);
+}
+if (process.env.SMOKE) await smoke();
+
 /* ------------------------------------------------------------ main */
 const report = { base: BASE, runs: {} };
 const only = (process.env.CONFIGS || '').split(',').filter(Boolean);

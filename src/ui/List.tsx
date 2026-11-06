@@ -1,10 +1,8 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, animate, m, useMotionValue, useMotionValueEvent } from 'motion/react';
+import { createContext, useContext, useRef, type ReactNode } from 'react';
 import { IconChevronRight } from '../components/icons';
-import { spring, springs, fadeMotion } from '../design/tokens';
 import { useContextMenu, type MenuAction } from './ContextMenu';
-import { pastThreshold, resolveDrag } from './gestures';
 import { haptic, type HapticKind } from './haptics';
+import { useMotionParts } from './motionLoader';
 import { usePress } from './press';
 
 const LiveContext = createContext(false);
@@ -15,7 +13,8 @@ const LiveContext = createContext(false);
  *
  * `live` is for lists whose rows come and go (history, reminders): removed rows collapse and fade
  * with spring.smooth, siblings slide into the gap, inserted rows ease in. Rows need stable `key`s,
- * and children must be rows (no fragments).
+ * and children must be rows (no fragments). The animation code loads after first paint; until then
+ * rows simply appear and disappear.
  */
 export function ListGroup({
   header,
@@ -33,12 +32,14 @@ export function ListGroup({
   /** Accessible name when there is no visible header. */
   label?: string;
 }) {
+  const parts = useMotionParts();
+  const animated = live && parts !== null;
   return (
     <section className="ui-group" data-plain={plain || undefined}>
       {header && <h3 className="ui-group-header">{header}</h3>}
-      <LiveContext.Provider value={live}>
+      <LiveContext.Provider value={animated}>
         <ul className="ui-list" aria-label={typeof header === 'string' ? undefined : label}>
-          {live ? <AnimatePresence initial={false}>{children}</AnimatePresence> : children}
+          {animated && parts ? <parts.LiveBoundary>{children}</parts.LiveBoundary> : children}
         </ul>
       </LiveContext.Provider>
       {footer && <p className="ui-group-footer">{footer}</p>}
@@ -107,28 +108,11 @@ function merge(...sets: Handlers[]): Record<string, (e: unknown) => void> {
  */
 export function Row({ leading, title, subtitle, value, trailing, onPress, chevron, disabled, selected, haptic: hapticKind = false, menu: menuActions, swipe, progress }: RowProps) {
   const live = useContext(LiveContext);
+  const parts = useMotionParts();
   const press = usePress<HTMLButtonElement>(disabled);
   const ctx = useContextMenu(disabled ? undefined : menuActions);
-
-  const itemRef = useRef<HTMLLIElement>(null);
-  const x = useMotionValue(0);
-  const [width, setWidth] = useState(0);
-  const [armed, setArmed] = useState<'leading' | 'trailing' | null>(null);
-  // The coloured action panels sit under the row; only show them while the row is displaced, so they
-  // never peek out at the row's rounded corners.
-  const [revealed, setRevealed] = useState(false);
-  useMotionValueEvent(x, 'change', (v) => setRevealed(Math.abs(v) > 1));
   const dragged = useRef(false);
   const canSwipe = !disabled && !!(swipe?.leading || swipe?.trailing);
-
-  useEffect(() => {
-    if (!canSwipe || !itemRef.current) return;
-    const el = itemRef.current;
-    const ro = new ResizeObserver(() => setWidth(el.offsetWidth));
-    ro.observe(el);
-    setWidth(el.offsetWidth);
-    return () => ro.disconnect();
-  }, [canSwipe]);
 
   const body = (
     <>
@@ -179,88 +163,23 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
     </div>
   );
 
-  const springBack = (velocity = 0) => animate(x, 0, { type: 'spring', ...springs.smooth, mass: 1, velocity });
-
-  const swiped = canSwipe ? (
-    <>
-      <div className="ui-swipe-under" aria-hidden="true" data-revealed={revealed || undefined}>
-        <div className="ui-swipe-action" data-tone={swipe?.leading?.tone} data-side="leading" data-armed={armed === 'leading' || undefined}>
-          {swipe?.leading && (
-            <span className="ui-swipe-label">
-              {swipe.leading.icon}
-              {swipe.leading.label}
-            </span>
-          )}
-        </div>
-        <div className="ui-swipe-action" data-tone={swipe?.trailing?.tone} data-side="trailing" data-armed={armed === 'trailing' || undefined}>
-          {swipe?.trailing && (
-            <span className="ui-swipe-label">
-              {swipe.trailing.icon}
-              {swipe.trailing.label}
-            </span>
-          )}
-        </div>
-      </div>
-      <m.div
-        className="ui-swipe-content"
-        style={{ x }}
-        drag="x"
-        dragDirectionLock
-        dragConstraints={{ left: swipe?.trailing ? -width : 0, right: swipe?.leading ? width : 0 }}
-        dragElastic={0}
-        dragMomentum={false}
-        onDragStart={() => {
-          dragged.current = true;
-        }}
-        onDrag={() => {
-          const off = x.get();
-          const past = pastThreshold(off, width);
-          const side = past ? (off < 0 ? 'trailing' : 'leading') : null;
-          if (side !== armed) {
-            setArmed(side);
-            if (side) haptic('impactMedium');
-          }
-        }}
-        onDragEnd={async (_, info) => {
-          setTimeout(() => (dragged.current = false), 60);
-          const off = x.get();
-          const action = off < 0 ? swipe?.trailing : swipe?.leading;
-          setArmed(null);
-          if (action && resolveDrag(off, info.velocity.x, width) === 'commit') {
-            await animate(x, off < 0 ? -width : width, { type: 'spring', ...springs.smooth, mass: 1, velocity: info.velocity.x });
-            await action.onCommit();
-            springBack();
-          } else {
-            springBack(info.velocity.x);
-          }
-        }}
-      >
+  // Swipe needs the motion code; until it has loaded the row is simply not swipeable (the same
+  // actions are in the long-press menu and the row's detail).
+  const swiped =
+    canSwipe && swipe && parts ? (
+      <parts.SwipeLayer swipe={swipe} dragged={dragged}>
         {content}
-      </m.div>
-    </>
-  ) : (
-    content
-  );
-
-  const common = { className: 'ui-row-item', 'data-leading': leading ? true : undefined } as const;
+      </parts.SwipeLayer>
+    ) : (
+      content
+    );
 
   return (
     <>
-      {live ? (
-        <m.li
-          {...common}
-          ref={itemRef}
-          data-live
-          layout="position"
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0, transition: { height: spring.smooth, opacity: fadeMotion.exit } }}
-          transition={{ default: spring.smooth, opacity: fadeMotion.standard }}
-        >
-          {swiped}
-        </m.li>
+      {live && parts ? (
+        <parts.LiveItem leading={!!leading}>{swiped}</parts.LiveItem>
       ) : (
-        <li {...common} ref={itemRef}>
+        <li className="ui-row-item" data-leading={leading ? true : undefined}>
           {swiped}
         </li>
       )}

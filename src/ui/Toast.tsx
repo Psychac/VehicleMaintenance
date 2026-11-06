@@ -1,9 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { AnimatePresence, m } from 'motion/react';
-import { motionValues, spring, fadeMotion } from '../design/tokens';
-import { Button } from './Button';
+import { motionValues } from '../design/tokens';
 import { haptic } from './haptics';
+import { loadMotion, useMotionParts } from './motionLoader';
 
 export interface ToastInput {
   message: string;
@@ -13,7 +11,7 @@ export interface ToastInput {
   tone?: 'default' | 'success' | 'error';
 }
 
-interface ToastItem extends ToastInput {
+export interface ToastItem extends ToastInput {
   id: number;
 }
 
@@ -27,11 +25,13 @@ export const useToast = () => useContext(ToastContext);
  * nearest its cause (the bottom, above the tab bar), auto-dismisses, swipes away.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const parts = useMotionParts();
   const [item, setItem] = useState<ToastItem | null>(null);
   const seq = useRef(0);
   const dismiss = useCallback(() => setItem(null), []);
 
   const show = useCallback((t: ToastInput) => {
+    void loadMotion();
     if (t.tone === 'success') haptic('success');
     if (t.tone === 'error') haptic('error');
     setItem({ ...t, id: ++seq.current });
@@ -48,43 +48,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {typeof document !== 'undefined' &&
-        createPortal(
-          <div className="ui-toast-region" aria-live="polite" aria-atomic="true">
-            <AnimatePresence mode="popLayout">
-              {item && (
-                <m.div
-                  key={item.id}
-                  className="ui-toast"
-                  data-tone={item.tone ?? 'default'}
-                  role="status"
-                  initial={{ opacity: 0, y: motionValues.enterOffsetMd, scale: motionValues.enterScale }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: motionValues.exitScale, transition: fadeMotion.exit }}
-                  transition={{ default: spring.smooth, opacity: fadeMotion.standard }}
-                  drag="y"
-                  dragConstraints={{ top: 0, bottom: 0 }}
-                  dragElastic={{ top: 0, bottom: 0.6 }}
-                  onDragEnd={(_, info) => (info.offset.y > 24 || info.velocity.y > 300) && dismiss()}
-                >
-                  <span className="ui-toast-text">{item.message}</span>
-                  {item.action && (
-                    <Button
-                      variant="tertiary"
-                      onClick={() => {
-                        item.action!.onPress();
-                        dismiss();
-                      }}
-                    >
-                      {item.action.label}
-                    </Button>
-                  )}
-                </m.div>
-              )}
-            </AnimatePresence>
-          </div>,
-          document.body
-        )}
+      {parts && <parts.ToastView item={item} dismiss={dismiss} />}
     </ToastContext.Provider>
   );
 }

@@ -20,4 +20,4 @@ export { Skeleton, SkeletonRow, SkeletonRows, useDelayedFlag } from './Skeleton'
 export { ToastProvider, useToast, type ToastInput } from './Toast';
 export { useMediaQuery } from './useMediaQuery';
 export { usePress } from './press';
-export { LazyMotion, MotionConfig } from 'motion/react';
+export { loadMotion, loadMotionWhenIdle } from './motionLoader';
