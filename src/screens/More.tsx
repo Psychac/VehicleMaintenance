@@ -20,10 +20,9 @@ export function More({ data }: { data: AllData }) {
   const shell = useShell();
   return (
     <>
-      <ScreenHeader title="More" />
+      <ScreenHeader title="More" trailing={shell.bellButton} />
       <div className="screen">
-        <ListGroup label="Insights and vehicles">
-          <Row title="Reports" onPress={() => shell.navigate({ tab: 'more', sub: 'reports' })} chevron />
+        <ListGroup label="Vehicles">
           <Row title="Vehicles" value={data.vehicles.length} onPress={() => shell.navigate({ tab: 'more', sub: 'vehicles' })} chevron />
         </ListGroup>
         <ListGroup header="Data">

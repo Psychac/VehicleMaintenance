@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { IconBell, IconCar, IconChevronDown, IconHome, IconList, IconMore } from './components/icons';
+import { IconBell, IconCar, IconChart, IconChevronDown, IconHome, IconList, IconMore } from './components/icons';
 import { currentOdometer, reminderStatus } from './lib/calc';
 import { today } from './lib/format';
 import { applyPendingCopy, initDb, isLocalMode, listAll, storageStatus, supabase } from './lib/db';
@@ -51,8 +51,8 @@ const loadMotionFeatures = () => import('./ui/motionFeatures').then((r) => r.def
 const EMPTY: AllData = { vehicles: [], fuel_logs: [], service_logs: [], reminders: [] };
 const VEHICLE_KEY = 'vehicle-log:selected';
 const TAB_KEY = 'vehicle-log:tab';
-const TABS: Tab[] = ['home', 'log', 'reminders', 'more'];
-const SUBS: Sub[] = ['reports', 'vehicles', 'backup', 'storage', 'account'];
+const TABS: Tab[] = ['home', 'log', 'reports', 'more'];
+const MORE_SUBS: Sub[] = ['vehicles', 'backup', 'storage', 'account'];
 
 function remembered(key: string): string | null {
   try {
@@ -76,11 +76,16 @@ function parseRoute(): Route {
     overview: { tab: 'home' },
     fuel: { tab: 'log' },
     service: { tab: 'log' },
-    reports: { tab: 'more', sub: 'reports' },
     settings: { tab: 'more' },
+    // Reminders used to be a tab; it is now a pushed screen opened from the header bell.
+    reminders: { tab: 'home', sub: 'reminders' },
   };
   if (legacy[a]) return legacy[a];
-  if (TABS.includes(a as Tab)) return { tab: a as Tab, sub: a === 'more' && SUBS.includes(b as Sub) ? (b as Sub) : undefined };
+  if (a === 'more' && b === 'reports') return { tab: 'reports' };
+  if (TABS.includes(a as Tab)) {
+    const sub = b === 'reminders' ? 'reminders' : a === 'more' && MORE_SUBS.includes(b as Sub) ? (b as Sub) : undefined;
+    return { tab: a as Tab, sub };
+  }
   const last = remembered(TAB_KEY);
   return { tab: TABS.includes(last as Tab) ? (last as Tab) : 'home' };
 }
@@ -223,8 +228,8 @@ function Root() {
 
   const back = useCallback(() => {
     if (window.history.state?.pushed) window.history.back();
-    else navigate({ tab: 'more' });
-  }, [navigate]);
+    else navigate({ tab: route.tab });
+  }, [navigate, route.tab]);
 
   const activeVehicles = useMemo(() => data.vehicles.filter((v) => !v.archived), [data.vehicles]);
   const vehicle = activeVehicles.find((v) => v.id === vehicleId) ?? activeVehicles[0] ?? null;
@@ -306,7 +311,7 @@ function Root() {
   const items: NavItem<Tab>[] = [
     { id: 'home', label: 'Home', icon: IconHome },
     { id: 'log', label: 'Log', icon: IconList },
-    { id: 'reminders', label: 'Reminders', icon: IconBell, badge: overdueCount || undefined },
+    { id: 'reports', label: 'Reports', icon: IconChart },
     { id: 'more', label: 'More', icon: IconMore },
   ];
 
@@ -318,6 +323,22 @@ function Root() {
     </span>
   ) : null;
   const switchButton = vehicle ? <IconButton label={`Switch vehicle. Current: ${vehicle.name}`} tone="accent" icon={<IconCar size={22} />} onClick={() => setPicker(true)} /> : null;
+
+  const bellButton = scope ? (
+    <span className="bell">
+      <IconButton
+        label={overdueCount ? `Reminders, ${overdueCount} overdue` : 'Reminders'}
+        tone="accent"
+        icon={<IconBell size={22} />}
+        onClick={() => navigate({ tab: route.tab, sub: 'reminders' })}
+      />
+      {overdueCount > 0 && (
+        <span className="bell-badge" aria-hidden="true">
+          {overdueCount}
+        </span>
+      )}
+    </span>
+  ) : null;
 
   const entryCount = (v: Vehicle | null) =>
     v ? data.fuel_logs.filter((x) => x.vehicle_id === v.id).length + data.service_logs.filter((x) => x.vehicle_id === v.id).length + data.reminders.filter((x) => x.vehicle_id === v.id).length : 0;
@@ -336,14 +357,15 @@ function Root() {
     </>
   );
 
-  const needsVehicle = !scope && route.tab !== 'more';
+  const needsVehicle = !scope && (route.tab !== 'more' || route.sub === 'reminders');
+  const TITLES = { home: 'Home', log: 'Log', reports: 'Reports', more: 'Reminders' } as const;
 
   let screen;
-  if (needsVehicle) screen = noVehicle(route.tab === 'home' ? 'Home' : route.tab === 'log' ? 'Log' : 'Reminders');
+  if (needsVehicle) screen = noVehicle(route.sub === 'reminders' ? 'Reminders' : TITLES[route.tab]);
+  else if (route.sub === 'reminders' && scope) screen = <Reminders scope={scope} loading={loading} reload={reload} />;
   else if (route.tab === 'home' && scope) screen = <Home scope={scope} loading={loading} reload={reload} />;
   else if (route.tab === 'log' && scope) screen = <Log scope={scope} loading={loading} reload={reload} />;
-  else if (route.tab === 'reminders' && scope) screen = <Reminders scope={scope} loading={loading} reload={reload} />;
-  else if (route.sub === 'reports') screen = scope ? <Reports scope={scope} loading={loading} /> : noVehicle('Reports');
+  else if (route.tab === 'reports' && scope) screen = <Reports scope={scope} loading={loading} />;
   else if (route.sub === 'vehicles') screen = <Vehicles vehicles={data.vehicles} />;
   else if (route.sub === 'backup') screen = <Backup data={data} reload={reload} />;
   else if (route.sub === 'storage') screen = <Storage />;
@@ -351,7 +373,7 @@ function Root() {
   else screen = <More data={data} />;
 
   return (
-    <ShellProvider value={{ vehicleButton, switchButton, editVehicle: setVehicleEdit, navigate, back }}>
+    <ShellProvider value={{ vehicleButton, switchButton, bellButton, editVehicle: setVehicleEdit, navigate, back }}>
       <div className="app">
         <AppNav
           items={items}

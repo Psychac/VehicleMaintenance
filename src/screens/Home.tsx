@@ -42,12 +42,17 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
     .slice(0, 5);
 
   const details = [vehicleDetails(vehicle), vehicle.plate].filter(Boolean).join(' · ');
-  const goReminders = () => shell.navigate({ tab: 'reminders' });
+  const goReminders = () => shell.navigate({ tab: 'home', sub: 'reminders' });
   const trash = <IconTrash size={18} />;
 
   return (
     <>
-      <ScreenHeader title={vehicle.name} subtitle={details || undefined} trailing={shell.switchButton} />
+      <ScreenHeader title={vehicle.name} subtitle={details || undefined} trailing={
+          <>
+            {shell.switchButton}
+            {shell.bellButton}
+          </>
+        } />
 
       <div className="screen">
         <Fade id={loading ? 'loading' : 'ready'}>

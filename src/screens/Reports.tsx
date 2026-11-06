@@ -1,8 +1,7 @@
 import { useRef, useState, type PointerEvent } from 'react';
-import { IconChevronLeft } from '../components/icons';
 import { averageEfficiency, costsByCategory, fuelEfficiency, monthlyCosts, type MonthCost } from '../lib/calc';
 import { fmtDate, fmtDec, fmtMoney, today } from '../lib/format';
-import { IconButton, ListGroup, ScreenHeader, Segmented, Skeleton, haptic } from '../ui';
+import { ListGroup, ScreenHeader, Segmented, Skeleton, haptic } from '../ui';
 import type { VehicleScope } from './shared';
 import { useShell } from './shell';
 
@@ -31,15 +30,16 @@ export default function Reports({ scope, loading }: { scope: VehicleScope; loadi
   return (
     <>
       <ScreenHeader
-        inline
         title="Reports"
-        leading={<IconButton label="Back" tone="accent" icon={<IconChevronLeft size={22} />} onClick={shell.back} />}
+        subtitle={total > 0 ? `${fmtMoney(total)} over ${n} months · ${fmtMoney(total / n)} a month` : `Nothing spent in the last ${n} months`}
+        trailing={
+          <>
+            {shell.vehicleButton}
+            {shell.bellButton}
+          </>
+        }
       />
       <div className="screen">
-        <p className="screen-intro tnum">
-          {total > 0 ? `${fmtMoney(total)} over ${n} months · ${fmtMoney(total / n)} a month` : `Nothing spent in the last ${n} months`}
-        </p>
-
         <Segmented
           label="Range"
           value={range}

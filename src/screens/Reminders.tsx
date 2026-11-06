@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { IconBell, IconCheck, IconPlus, IconTrash } from '../components/icons';
+import { IconBell, IconCheck, IconChevronLeft, IconPlus, IconTrash } from '../components/icons';
 import { reminderProgress, type ReminderState } from '../lib/calc';
 import type { Reminder } from '../lib/types';
-import { Button, EmptyState, Fade, ListGroup, Row, ScreenHeader, SkeletonRows, useCompletion, useToast } from '../ui';
+import { Button, EmptyState, Fade, IconButton, ListGroup, Row, ScreenHeader, SkeletonRows, useCompletion, useToast } from '../ui';
 import ReminderSheet from './ReminderSheet';
 import { deleteWithUndo, dueText, markDoneNow, odometerOf, reminderRows, type Editing, type VehicleScope } from './shared';
 import { useShell } from './shell';
@@ -40,7 +40,13 @@ export default function Reminders({ scope, loading, reload }: { scope: VehicleSc
 
   return (
     <>
-      <ScreenHeader title="Reminders" subtitle={subtitle} trailing={shell.vehicleButton} />
+      <ScreenHeader
+        inline
+        title="Reminders"
+        subtitle={subtitle}
+        leading={<IconButton label="Back" tone="accent" icon={<IconChevronLeft size={22} />} onClick={shell.back} />}
+        trailing={shell.vehicleButton}
+      />
 
       <div className="screen">
         <Fade id={loading ? 'loading' : rows.length === 0 ? 'empty' : 'ready'}>

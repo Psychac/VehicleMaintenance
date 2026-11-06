@@ -137,8 +137,8 @@ async function audit(s, name) {
 }
 
 const SCREENS = [
-  ['home', '#home'], ['log/fuel', '#log'], ['log/service', '#log', 'Service'], ['reminders', '#reminders'],
-  ['more', '#more'], ['reports', '#more/reports'], ['vehicles', '#more/vehicles'], ['backup', '#more/backup'], ['storage', '#more/storage'],
+  ['home', '#home'], ['log/fuel', '#log'], ['log/service', '#log', 'Service'], ['reminders', '#home/reminders'],
+  ['more', '#more'], ['reports', '#reports'], ['vehicles', '#more/vehicles'], ['backup', '#more/backup'], ['storage', '#more/storage'],
 ];
 
 async function go(s, hash, then) {
@@ -154,7 +154,7 @@ async function auditAll(s, label) {
   await go(s, '#home');
   await clickText(s.ev, 'Add fill-up'); await sleep(900); res.push(await audit(s, `${label} sheet:add-fill-up`));
   await s.ev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`); await sleep(700);
-  await go(s, '#reminders');
+  await go(s, '#home/reminders');
   await s.ev(`document.querySelector('button.ui-row').click()`); await sleep(900); res.push(await audit(s, `${label} sheet:reminder-detail`));
   await s.ev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`); await sleep(700);
   await go(s, '#home');
@@ -223,7 +223,7 @@ async function perf(s) {
   // tap -> first visual change, and frame pacing per tab (real taps)
   out.tapToNavMs = [];
   out.perTab = {};
-  for (const tab of ['Log', 'Reminders', 'Home', 'More', 'Home', 'Log', 'Reminders', 'More']) {
+  for (const tab of ['Log', 'Reports', 'Home', 'More', 'Home', 'Log', 'Reports', 'More']) {
     await s.ev('window.__rec(true)');
     await s.ev(`(() => { window.__t0 = 0; window.__t1 = 0; document.addEventListener('pointerdown', () => { window.__t0 = performance.now(); }, { once: true, capture: true }); const mo = new MutationObserver(() => { if (window.__t0 && !window.__t1) { window.__t1 = performance.now(); mo.disconnect(); } }); mo.observe(document.querySelector('.ui-tabbar'), { attributes: true, attributeFilter: ['data-active'], subtree: true }); })()`);
     await tap(s, tabBtn(tab));

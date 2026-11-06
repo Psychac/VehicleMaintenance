@@ -59,7 +59,15 @@ export default function Log({ scope, loading, reload }: { scope: VehicleScope; l
 
   return (
     <>
-      <ScreenHeader title="Log" trailing={shell.vehicleButton} />
+      <ScreenHeader
+        title="Log"
+        trailing={
+          <>
+            {shell.vehicleButton}
+            {shell.bellButton}
+          </>
+        }
+      />
 
       <div className="screen">
         <Segmented

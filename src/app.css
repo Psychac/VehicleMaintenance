@@ -386,3 +386,25 @@ p {
 .bar-pct {
   color: var(--color-label-secondary);
 }
+
+/* Header bell with the overdue count. */
+.bell {
+  position: relative;
+  display: inline-flex;
+}
+.bell-badge {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  min-width: var(--space-16);
+  height: var(--space-16);
+  padding-inline: var(--space-4);
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--color-destructive);
+  color: var(--color-destructive-fg);
+  font: var(--type-caption2);
+  pointer-events: none;
+}
