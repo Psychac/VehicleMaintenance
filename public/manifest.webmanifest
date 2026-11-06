@@ -3,8 +3,8 @@
   "short_name": "Vehicle Log",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f5f9",
-  "theme_color": "#5457e8",
+  "background_color": "#FBFAF7",
+  "theme_color": "#1F6B73",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
