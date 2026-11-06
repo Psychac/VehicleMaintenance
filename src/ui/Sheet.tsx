@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, animate, motion, useDragControls, useMotionValue, usePresence, useTransform } from 'motion/react';
-import { breakpoints, spring, springs } from '../design/tokens';
+import { breakpoints, spring, springs, fadeMotion } from '../design/tokens';
 import { Button } from './Button';
 import { haptic } from './haptics';
 import { useMediaQuery } from './useMediaQuery';
@@ -251,8 +251,8 @@ function Dialog({ onClose, title, action, children, dirty = false, cancelLabel }
         className="ui-scrim"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        exit={{ opacity: 0, transition: { duration: 0.15, ease: [0.4, 0, 1, 1] } }}
-        transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
+        exit={{ opacity: 0, transition: fadeMotion.exit }}
+        transition={fadeMotion.standard}
         onClick={beh.attemptClose}
         aria-hidden="true"
       />
@@ -266,8 +266,8 @@ function Dialog({ onClose, title, action, children, dirty = false, cancelLabel }
           tabIndex={-1}
           initial={{ opacity: 0, scale: 0.96, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15, ease: [0.4, 0, 1, 1] } }}
-          transition={{ default: spring.smooth, opacity: { duration: 0.2, ease: [0.2, 0, 0, 1] } }}
+          exit={{ opacity: 0, scale: 0.96, transition: fadeMotion.exit }}
+          transition={{ default: spring.smooth, opacity: fadeMotion.standard }}
         >
           <Chrome
             title={title}

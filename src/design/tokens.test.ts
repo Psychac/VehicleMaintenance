@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SPACE, buildTokenCss, colors, radius, springToLinear, springs, type Palette } from './tokens';
+import { SPACE, buildTokenCss, fadeMotion, colors, radius, springToLinear, springs, type Palette } from './tokens';
 
 type RGB = [number, number, number];
 
@@ -124,5 +124,19 @@ describe('buildTokenCss', () => {
 
   it('has balanced braces', () => {
     expect((css.match(/{/g) ?? []).length).toBe((css.match(/}/g) ?? []).length);
+  });
+});
+
+describe('fadeMotion (JS twin of the CSS fade tokens)', () => {
+  it.each(Object.entries(fadeMotion))('%s has a valid duration and a 4-point finite bezier', (_k, f) => {
+    expect(f.duration).toBeGreaterThan(0);
+    expect(f.duration).toBeLessThanOrEqual(0.5);
+    expect(f.ease).toHaveLength(4);
+    for (const n of f.ease) expect(Number.isFinite(n)).toBe(true);
+  });
+  it('matches the CSS tokens', () => {
+    expect(fadeMotion.standard.ease).toEqual([0.2, 0, 0, 1]);
+    expect(fadeMotion.exit.ease).toEqual([0.4, 0, 1, 1]);
+    expect(fadeMotion.exit.duration).toBe(0.15);
   });
 });

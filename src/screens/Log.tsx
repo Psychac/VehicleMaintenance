@@ -20,6 +20,9 @@ function remembered(): Kind {
   }
 }
 
+/** Rows rendered at a time. Long histories mount in pieces so switching to Log stays instant. */
+const PAGE = 25;
+
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -32,10 +35,12 @@ export default function Log({ scope, loading, reload }: { scope: VehicleScope; l
   const [fuelEdit, setFuelEdit] = useState<Editing<FuelLog>>(null);
   const [serviceEdit, setServiceEdit] = useState<Editing<ServiceLog>>(null);
   const [category, setCategory] = useState('all');
+  const [limit, setLimit] = useState(PAGE);
   const odo = odometerOf(scope);
 
   const setKind = (k: Kind) => {
     setKindState(k);
+    setLimit(PAGE);
     try {
       localStorage.setItem(KEY, k);
     } catch {
@@ -87,7 +92,7 @@ export default function Log({ scope, loading, reload }: { scope: VehicleScope; l
                   .filter(Boolean)
                   .join(' · ')}
               >
-                {fuelRows.map((r) => (
+                {fuelRows.slice(0, limit).map((r) => (
                   <Row
                     key={r.id}
                     title={fmtRelDate(r.date)}
@@ -108,12 +113,13 @@ export default function Log({ scope, loading, reload }: { scope: VehicleScope; l
                     swipe={{ trailing: { label: 'Delete', icon: trash, tone: 'destructive', onCommit: () => removeFuel(r) } }}
                   />
                 ))}
+                {fuelRows.length > limit && <Row key="more" title="Show older" value={`${fuelRows.length - limit} more`} onPress={() => setLimit(limit + PAGE)} />}
               </ListGroup>
             )
           ) : (
             <>
               {service.length > 0 && (
-                <SelectField label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <SelectField label="Category" value={category} onChange={(e) => { setCategory(e.target.value); setLimit(PAGE); }}>
                   <option value="all">All categories</option>
                   {SERVICE_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
@@ -138,7 +144,7 @@ export default function Log({ scope, loading, reload }: { scope: VehicleScope; l
                 />
               ) : (
                 <ListGroup live header={`${plural(serviceRows.length, 'entry', 'entries')} · ${fmtMoney(serviceRows.reduce((t, r) => t + Number(r.cost), 0))}`}>
-                  {serviceRows.map((s) => (
+                  {serviceRows.slice(0, limit).map((s) => (
                     <Row
                       key={s.id}
                       title={s.title}
@@ -152,6 +158,7 @@ export default function Log({ scope, loading, reload }: { scope: VehicleScope; l
                       swipe={{ trailing: { label: 'Delete', icon: trash, tone: 'destructive', onCommit: () => removeService(s) } }}
                     />
                   ))}
+                  {serviceRows.length > limit && <Row key="more" title="Show older" value={`${serviceRows.length - limit} more`} onPress={() => setLimit(limit + PAGE)} />}
                 </ListGroup>
               )}
             </>

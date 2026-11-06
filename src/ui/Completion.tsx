@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { spring } from '../design/tokens';
+import { spring, fadeMotion } from '../design/tokens';
 import { haptic } from './haptics';
 
 const CompletionContext = createContext<() => void>(() => {});
@@ -47,15 +47,15 @@ export function CompletionProvider({ children }: { children: ReactNode }) {
                   className="ui-completion"
                   initial={{ opacity: 0, scale: 0.6 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15, ease: [0.4, 0, 1, 1] } }}
-                  transition={{ scale: spring.bouncy, opacity: { duration: 0.12 } }}
+                  exit={{ opacity: 0, scale: 0.96, transition: fadeMotion.exit }}
+                  transition={{ scale: spring.bouncy, opacity: fadeMotion.fast }}
                 >
                   <svg viewBox="0 0 24 24" className="ui-completion-check" fill="none">
                     <motion.path
                       d="M5 12.5l4.5 4.5L19 7.5"
                       initial={{ pathLength: 0 }}
                       animate={{ pathLength: 1 }}
-                      transition={{ duration: 0.3, delay: 0.1, ease: [0.2, 0, 0, 1] }}
+                      transition={{ ...fadeMotion.draw, delay: 0.1 }}
                     />
                   </svg>
                 </motion.div>

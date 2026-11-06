@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { motionValues, spring } from '../design/tokens';
+import { motionValues, spring, fadeMotion } from '../design/tokens';
 import { Button } from './Button';
 import { haptic } from './haptics';
 
@@ -60,8 +60,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   role="status"
                   initial={{ opacity: 0, y: motionValues.enterOffsetMd, scale: motionValues.enterScale }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: motionValues.exitScale, transition: { duration: 0.15, ease: [0.4, 0, 1, 1] } }}
-                  transition={{ default: spring.smooth, opacity: { duration: 0.2, ease: [0.2, 0, 0, 1] } }}
+                  exit={{ opacity: 0, scale: motionValues.exitScale, transition: fadeMotion.exit }}
+                  transition={{ default: spring.smooth, opacity: fadeMotion.standard }}
                   drag="y"
                   dragConstraints={{ top: 0, bottom: 0 }}
                   dragElastic={{ top: 0, bottom: 0.6 }}

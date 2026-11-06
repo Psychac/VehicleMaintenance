@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { spring } from '../design/tokens';
+import { spring, fadeMotion } from '../design/tokens';
 import { placeMenu, type MenuPlacement } from './gestures';
 import { haptic } from './haptics';
 import { usePress } from './press';
@@ -142,8 +142,8 @@ function MenuPopover({ point, actions, onClose }: { point: { x: number; y: numbe
         style={place ? { left: place.left, top: place.top, transformOrigin: `${place.originX} ${place.originY}` } : { left: 0, top: 0, visibility: 'hidden' }}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={place ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
-        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.12, ease: [0.4, 0, 1, 1] } }}
-        transition={{ default: spring.snappy, opacity: { duration: 0.12, ease: [0.2, 0, 0, 1] } }}
+        exit={{ opacity: 0, scale: 0.96, transition: fadeMotion.exit }}
+        transition={{ default: spring.snappy, opacity: fadeMotion.fast }}
       >
         {actions.map((a) => (
           <MenuItem

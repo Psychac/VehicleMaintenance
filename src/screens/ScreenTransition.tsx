@@ -1,14 +1,12 @@
 import type { ReactNode } from 'react';
 import { AnimatePresence, animate, motion, useDragControls, useMotionValue, useReducedMotion, type Variants } from 'motion/react';
-import { motionValues, spring, springs } from '../design/tokens';
+import { motionValues, spring, springs, fadeMotion } from '../design/tokens';
 import { resolveDrag } from '../ui/gestures';
 import { haptic } from '../ui/haptics';
 
 /** How the route changed: switching tabs, going deeper, or coming back. */
 export type TransitionKind = 'tab' | 'push' | 'back';
 
-const EASE_OUT: [number, number, number, number] = [0.2, 0, 0, 1];
-const EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
 
 /**
  * DESIGN.md S5.4:
@@ -23,11 +21,11 @@ const variants: Variants = {
   center: {
     x: 0,
     opacity: 1,
-    transition: { x: spring.smooth, opacity: { duration: 0.2, ease: EASE_OUT } },
+    transition: { x: spring.smooth, opacity: fadeMotion.standard },
   },
   exit: (k: TransitionKind) =>
     k === 'push'
-      ? { x: -motionValues.enterOffsetMd, opacity: 0, transition: { x: spring.smooth, opacity: { duration: 0.15, ease: EASE_IN } } }
+      ? { x: -motionValues.enterOffsetMd, opacity: 0, transition: { x: spring.smooth, opacity: fadeMotion.exit } }
       : k === 'back'
         ? { x: '100%', transition: { x: spring.smooth } }
         : { opacity: 0, transition: { duration: 0 } },
@@ -36,8 +34,8 @@ const variants: Variants = {
 /** Reduce Motion (S5.6): no slide, no parallax, no drag offset: every change is a plain crossfade. */
 const reducedVariants: Variants = {
   enter: { opacity: 0 },
-  center: { opacity: 1, transition: { opacity: { duration: motionValues.reducedFadeMs / 1000, ease: EASE_OUT } } },
-  exit: { opacity: 0, transition: { opacity: { duration: 0.15, ease: EASE_IN } } },
+  center: { opacity: 1, transition: { opacity: { ...fadeMotion.standard, duration: motionValues.reducedFadeMs / 1000 } } },
+  exit: { opacity: 0, transition: { opacity: fadeMotion.exit } },
 };
 
 /**

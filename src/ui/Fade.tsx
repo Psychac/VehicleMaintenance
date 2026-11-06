@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { fade } from '../design/tokens';
-
-const EASE: [number, number, number, number] = [0.2, 0, 0, 1];
+import { fadeMotion } from '../design/tokens';
 
 /**
  * Crossfades between states of the same screen (skeleton → content, Fuel → Service, DESIGN.md S8).
@@ -11,7 +9,7 @@ const EASE: [number, number, number, number] = [0.2, 0, 0, 1];
  */
 export function Fade({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <motion.div key={id} className="ui-fade" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: fade.standard.ms / 1000, ease: EASE }}>
+    <motion.div key={id} className="ui-fade" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fadeMotion.standard}>
       {children}
     </motion.div>
   );

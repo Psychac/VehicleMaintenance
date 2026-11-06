@@ -231,6 +231,16 @@ export const fade = {
   colorState: { ms: 180, ease: 'cubic-bezier(0.4, 0, 0.2, 1)' },
 } as const;
 
+/** `motion`-ready versions of the fade tokens (seconds + bezier points), derived from `fade` so JS and CSS can't drift. */
+const bezier = (css: string) => css.match(/-?\d*\.?\d+/g)!.map(Number) as [number, number, number, number];
+export const fadeMotion = {
+  fast: { duration: fade.fast.ms / 1000, ease: bezier(fade.fast.ease) },
+  standard: { duration: fade.standard.ms / 1000, ease: bezier(fade.standard.ease) },
+  exit: { duration: fade.exit.ms / 1000, ease: bezier(fade.exit.ease) },
+  /** Checkmark stroke draw (S5.4: 300 ms). */
+  draw: { duration: 0.3, ease: bezier(fade.standard.ease) },
+} as const;
+
 /** Press, enter and exit values (S5.3, S6.1). */
 export const motionValues = {
   pressScaleButton: 0.97,

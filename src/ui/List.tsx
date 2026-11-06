@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, animate, motion, useMotionValue } from 'motion/react';
 import { IconChevronRight } from '../components/icons';
-import { spring, springs } from '../design/tokens';
+import { spring, springs, fadeMotion } from '../design/tokens';
 import { useContextMenu, type MenuAction } from './ContextMenu';
 import { pastThreshold, resolveDrag } from './gestures';
 import { haptic, type HapticKind } from './haptics';
@@ -243,8 +243,8 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
           layout="position"
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0, transition: { height: spring.smooth, opacity: { duration: 0.15, ease: [0.4, 0, 1, 1] } } }}
-          transition={{ default: spring.smooth, opacity: { duration: 0.2, ease: [0.2, 0, 0, 1] } }}
+          exit={{ opacity: 0, height: 0, transition: { height: spring.smooth, opacity: fadeMotion.exit } }}
+          transition={{ default: spring.smooth, opacity: fadeMotion.standard }}
         >
           {swiped}
         </motion.li>
