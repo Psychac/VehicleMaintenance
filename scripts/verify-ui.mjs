@@ -36,7 +36,9 @@ function seedFile() {
 async function launch(opts) {
   const port = 9800 + Math.floor(Math.random() * 150);
   const exe = BROWSERS.find((b) => fs.existsSync(b));
-  const proc = spawn(exe, [`--remote-debugging-port=${port}`, '--headless=new', '--disable-gpu', `--user-data-dir=${path.join(os.tmpdir(), 'vu' + port)}`, 'about:blank'], { stdio: 'ignore' });
+  // A fresh profile every run: a reused one carries over localStorage and the on-device database.
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vu-'));
+  const proc = spawn(exe, [`--remote-debugging-port=${port}`, '--headless=new', '--disable-gpu', `--user-data-dir=${profileDir}`, 'about:blank'], { stdio: 'ignore' });
   let t;
   for (let i = 0; i < 60; i++) { try { t = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); if (t.length) break; } catch { /* retry */ } await sleep(200); }
   const ws = new WebSocket(t.find((x) => x.type === 'page').webSocketDebuggerUrl);
@@ -60,7 +62,10 @@ async function launch(opts) {
     new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__long.push(Math.round(e.duration)); }).observe({ type: 'longtask', buffered: true });
     ${opts.fontScale ? `document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.fontSize = '${opts.fontScale}%'; });` : ''}
   ` });
-  const close = () => { try { ws.close(); proc.kill(); } catch { /* gone */ } };
+  const close = () => {
+    try { ws.close(); proc.kill(); } catch { /* gone */ }
+    setTimeout(() => fs.rm(profileDir, { recursive: true, force: true }, () => {}), 1500);
+  };
   return { send, ev, close, errors };
 }
 
@@ -165,7 +170,14 @@ async function auditAll(s, label) {
 /* ------------------------------------------------------------ perf */
 /** A real touch tap (counts as user input for layout-shift attribution). */
 async function tap(s, selectorExpr) {
-  const p = JSON.parse(await s.ev(`(()=>{const b=${selectorExpr};const r=b.getBoundingClientRect();return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2})})()`));
+  // Find and measure in one step (the target can disappear between two calls while a screen is
+  // leaving); retry until it is there.
+  let p = null;
+  for (let i = 0; i < 60 && !p; i++) {
+    p = JSON.parse(await s.ev(`(()=>{const b=${selectorExpr};if(!b)return 'null';const r=b.getBoundingClientRect();if(r.width<1)return 'null';return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2})})()`));
+    if (!p) await sleep(100);
+  }
+  if (!p) throw new Error('tap target never appeared: ' + selectorExpr.slice(0, 80));
   await s.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: p.x, y: p.y }] });
   await s.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
@@ -298,7 +310,10 @@ async function smoke() {
     // 3. header bell -> pushed Reminders -> back
     await s.ev("[...document.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')||'').startsWith('Reminders')&&b.getBoundingClientRect().width>0).click()"); await sleep(900);
     check('bell opens Reminders (pushed)', (await s.ev('location.hash')) === '#home/reminders', await s.ev('location.hash'));
-    await s.ev("[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Back'&&b.getBoundingClientRect().width>0).click()"); await sleep(900);
+    if (process.env.DEBUG) console.log('AT BELL', await s.ev(`JSON.stringify({back:(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Back');if(!b)return null;const r=b.getBoundingClientRect();const l=b.closest('.ui-screen-layer');const c=l&&getComputedStyle(l);return {w:r.width,h:r.height,x:r.x,y:r.y,layerOp:c&&c.opacity,layerTf:c&&c.transform,layerPos:c&&c.position}})(),hash:location.hash,layers:[...document.querySelectorAll('.ui-screen-layer')].map(l=>l.innerText.replace(/\s+/g,' ').slice(0,70)),labels:[...document.querySelectorAll('button')].map(b=>b.getAttribute('aria-label')).filter(Boolean)})`));
+    const backReady = await waitFor(s.ev, "[...document.querySelectorAll('button')].some(b=>b.getAttribute('aria-label')==='Back'&&b.getBoundingClientRect().width>0)", 5000);
+    if (!backReady) console.log('BACK MISSING', await s.ev(`JSON.stringify({hash:location.hash,t:document.body.innerText.slice(0,100)})`));
+    await s.ev("[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Back'&&b.getBoundingClientRect().width>0)?.click()"); await sleep(900);
     check('back returns to Home', (await s.ev('location.hash')) === '#home', await s.ev('location.hash'));
 
     // 4. tab switch animates (crossfade, no slide)
@@ -363,6 +378,104 @@ async function smoke() {
   console.log(failed ? failed + ' FAILED' : 'ALL PASSED', '(' + results.length + ' checks)');
   process.exit(failed ? 1 : 0);
 }
+/* ------------------------------------------------------------ transition probe (TRANSITIONS=1) */
+async function transitions() {
+  for (const cpu of process.env.CPU_ONLY ? [Number(process.env.CPU_ONLY)] : [1, 4]) {
+    const s = await launch({ width: 390, cpu });
+    try {
+      await s.send('Page.navigate', { url: BASE + '/#home' }); await sleep(2500);
+      await seed(s);
+      await s.send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+      await s.send('Page.navigate', { url: BASE + '/#home' });
+      await waitFor(s.ev, `!!document.querySelector('.hero-value')`, 20000);
+      await waitFor(s.ev, `!!document.querySelector('.ui-toast-region')`, 15000);
+      await sleep(1500);
+      await s.ev(`window.__rec=(on)=>{if(on){window.__fr=[];window.__ts=[];let l=performance.now();const t0=l;const t=(n)=>{window.__fr.push(n-l);window.__ts.push(Math.round(n-t0));l=n;if(window.__recOn)requestAnimationFrame(t)};window.__recOn=true;requestAnimationFrame(t)}else{window.__recOn=false;return JSON.stringify({d:window.__fr.slice(1),t:window.__ts.slice(1)})}};1`);
+      const run = async (label, action) => {
+        await s.ev('window.__long.length=0; window.__rec(true)');
+        await action();
+        await sleep(900);
+        const { d, t } = JSON.parse(await s.ev('window.__rec(false)'));
+        const slow = d.map((x, i) => [Math.round(x), t[i]]).filter(([x]) => x > 20);
+        const layers = await s.ev(`document.querySelectorAll('.ui-screen-layer').length`);
+        console.log(`cpu ${cpu}x  ${label.padEnd(16)} frames ${d.length}  max ${Math.round(Math.max(...d))}ms  slow(>20ms): ${JSON.stringify(slow.slice(0, 8))}  long tasks: ${JSON.stringify(await s.ev('window.__long.slice()'))}  layers after: ${layers}`);
+      };
+      const bell = () => tap(s, `[...document.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')||'').startsWith('Reminders')&&b.getBoundingClientRect().width>0)`);
+      const back = () => tap(s, `[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Back'&&b.getBoundingClientRect().width>0)`);
+      if (process.env.PROFILE && cpu === 4) {
+        const { SourceMapConsumer } = await import('source-map-js');
+        const file = fs.readdirSync(path.join('dist', 'assets')).filter((f) => /^index-.*\.js$/.test(f) || /^motionParts-.*\.js$/.test(f));
+        const maps = new Map(file.map((f) => [f, new SourceMapConsumer(JSON.parse(fs.readFileSync(path.join('dist', 'assets', f + '.map'), 'utf8')))]));
+        const target = process.env.PROFILE === 'log' ? () => tap(s, tabBtn('Log')) : bell;
+        await s.send('Profiler.enable'); await s.send('Profiler.setSamplingInterval', { interval: 300 }); await s.send('Profiler.start');
+        await target();
+        await sleep(900);
+        const { profile } = (await s.send('Profiler.stop')).result;
+        const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+        const buckets = new Map(); const funcs = new Map();
+        profile.samples.forEach((id, i) => {
+          const cf = byId.get(id).callFrame; const dt = profile.timeDeltas[i] || 0;
+          const f = cf.url.split('/').pop() || '';
+          let key = f || '(native/idle)'; let src = '';
+          const m = maps.get(f);
+          if (m) { const o = m.originalPositionFor({ line: cf.lineNumber + 1, column: cf.columnNumber }); if (o.source) { const nm = o.source.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/); key = nm ? nm[1] : o.source.replace(/^.*?src\//, 'src/'); src = (o.name || '') + ' ' + o.source.split('/').pop() + ':' + o.line; } }
+          buckets.set(key, (buckets.get(key) || 0) + dt);
+          if (key.startsWith('src/') || key === 'motion') funcs.set(key + ' ' + src, (funcs.get(key + ' ' + src) || 0) + dt);
+        });
+        console.log('PROFILE of ' + (process.env.PROFILE === 'log' ? 'tab Log' : 'push') + ' at 4x (ms self time):');
+        console.log([...buckets].sort((x, y) => y[1] - x[1]).slice(0, 14).map(([k, t]) => '  ' + Math.round(t / 1000) + 'ms ' + k).join('\n'));
+        console.log('top app/motion functions:');
+        console.log([...funcs].sort((x, y) => y[1] - x[1]).slice(0, 10).map(([k, t]) => '  ' + Math.round(t / 1000) + 'ms ' + k).join('\n'));
+        await s.send('Profiler.disable');
+        await sleep(500);
+        s.close();
+        continue;
+      }
+      await run('push (bell)', bell);
+      await run('back', back);
+      await run('push again', bell);
+      await run('back again', back);
+      await run('tab Log', () => tap(s, tabBtn('Log')));
+      await run('tab Reports', () => tap(s, tabBtn('Reports')));
+      await run('tab Home', () => tap(s, tabBtn('Home')));
+      // What is inside a transformed layer that is expensive while it moves?
+      await tap(s, `[...document.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')||'').startsWith('Reminders')&&b.getBoundingClientRect().width>0)`);
+      await sleep(900);
+      console.log('inside layer: backdrop-filter elements', await s.ev(`[...document.querySelectorAll('.ui-screen-layer *')].filter(e=>{const c=getComputedStyle(e);return (c.backdropFilter&&c.backdropFilter!=='none')}).map(e=>e.className).join(', ')`));
+      console.log('layer style', await s.ev(`(()=>{const l=document.querySelector('.ui-screen-layer');const c=getComputedStyle(l);return JSON.stringify({willChange:c.willChange,transform:c.transform,position:c.position,contain:c.contain})})()`));
+    } catch (e) {
+      console.log('ERR', String(e.stack || e).slice(0, 200));
+      console.log('STATE', await s.ev(`JSON.stringify({hash: location.hash, layers: [...document.querySelectorAll('.ui-screen-layer')].map(l => ({op: getComputedStyle(l).opacity, pos: getComputedStyle(l).position, tf: getComputedStyle(l).transform.slice(0, 24), text: l.innerText.replace(/\s+/g, ' ').slice(0, 60)})), buttons: [...document.querySelectorAll('button')].map(b => b.getAttribute('aria-label') || b.innerText).filter(Boolean).slice(0, 12), errors: window.__errs || null})`).catch((x) => 'eval failed ' + x));
+      console.log('PAGE ERRORS', JSON.stringify(s.errors.slice(0, 3)));
+    }
+    s.close();
+  }
+  process.exit(0);
+}
+/* Where is each docked action bar, frame by frame, while a screen is pushed? (it should stay put) */
+async function barProbe() {
+  const s = await launch({ width: 390 });
+  await s.send('Page.navigate', { url: BASE + '/#home' }); await sleep(2500);
+  await seed(s);
+  await s.send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+  await s.send('Page.navigate', { url: BASE + '/#home' });
+  await waitFor(s.ev, `!!document.querySelector('.hero-value')`, 20000);
+  await waitFor(s.ev, `!!document.querySelector('.ui-toast-region')`, 15000);
+  await sleep(1200);
+  // First navigation switches to the animated implementation; do one round trip so the next push is the animated kind.
+  await tap(s, `[...document.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')||'').startsWith('Reminders')&&b.getBoundingClientRect().width>0)`); await sleep(900);
+  await tap(s, `[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Back'&&b.getBoundingClientRect().width>0)`); await sleep(900);
+  await s.ev(`window.__samples=[];const t0=performance.now();const tick=()=>{window.__samples.push([Math.round(performance.now()-t0),[...document.querySelectorAll('.action-bar')].map(e=>{const r=e.getBoundingClientRect();return Math.round(r.top)+'/'+Math.round(r.left)}),[...document.querySelectorAll('.ui-screen-layer')].map(e=>{const r=e.getBoundingClientRect();const c=getComputedStyle(e);return 'top '+Math.round(r.top)+' h '+Math.round(r.height)+' pos '+c.position+' op '+(+c.opacity).toFixed(2)})]);if(performance.now()-t0<700)requestAnimationFrame(tick)};requestAnimationFrame(tick);1`);
+  await tap(s, `[...document.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')||'').startsWith('Reminders')&&b.getBoundingClientRect().width>0)`);
+  await sleep(1000);
+  const samples = JSON.parse(await s.ev('JSON.stringify(window.__samples)'));
+  console.log('viewport height 844; action bars (top/left) and layer transforms per frame during push:');
+  samples.filter((_, i) => i % 3 === 0).slice(0, 14).forEach((x) => console.log(' ', x[0] + 'ms', 'bars', JSON.stringify(x[1]), 'layers', JSON.stringify(x[2])));
+  s.close();
+  process.exit(0);
+}
+if (process.env.BARPROBE) await barProbe();
+if (process.env.TRANSITIONS) await transitions();
 if (process.env.SMOKE) await smoke();
 
 /* ------------------------------------------------------------ main */

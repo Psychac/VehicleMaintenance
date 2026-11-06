@@ -24,7 +24,7 @@ function client(): SupabaseClient {
 }
 
 /** Set after initDb() in SQLite mode. `persistent: false` means data is lost on reload. */
-export const storageStatus: { persistent: boolean; reason?: string } = { persistent: true };
+export const storageStatus: { persistent: boolean; reason?: string; locked?: boolean } = { persistent: true };
 
 const LEGACY_PREFIX = 'vehicle-log:';
 

@@ -174,16 +174,11 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
       content
     );
 
-  return (
-    <>
-      {live && parts ? (
-        <parts.LiveItem leading={!!leading}>{swiped}</parts.LiveItem>
-      ) : (
-        <li className="ui-row-item" data-leading={leading ? true : undefined}>
-          {swiped}
-        </li>
-      )}
-      {ctx.menu}
-    </>
+  return live && parts ? (
+    <parts.LiveItem leading={!!leading}>{swiped}</parts.LiveItem>
+  ) : (
+    <li className="ui-row-item" data-leading={leading ? true : undefined}>
+      {swiped}
+    </li>
   );
 }

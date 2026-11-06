@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent, type MouseEvent } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { haptic } from './haptics';
 import { loadMotion, useMotionParts } from './motionLoader';
 
@@ -9,17 +9,43 @@ export interface MenuAction {
   destructive?: boolean;
 }
 
+interface OpenMenu {
+  point: { x: number; y: number };
+  actions: MenuAction[];
+}
+
+const MenuContext = createContext<(m: OpenMenu) => void>(() => {});
+
+/**
+ * One menu host for the whole app. Every row used to mount its own portal, animation scope and
+ * presence wrapper, which made screens with many rows slow to appear; now a row only registers
+ * handlers and asks this host to show its actions.
+ */
+export function ContextMenuProvider({ children }: { children: ReactNode }) {
+  const parts = useMotionParts();
+  const [open, setOpen] = useState<OpenMenu | null>(null);
+  const show = useCallback((m: OpenMenu) => setOpen(m), []);
+  const close = useCallback(() => setOpen(null), []);
+  const value = useMemo(() => show, [show]);
+  return (
+    <MenuContext.Provider value={value}>
+      {children}
+      {parts && <parts.MenuHost point={open?.point ?? null} actions={open?.actions ?? []} onClose={close} />}
+    </MenuContext.Provider>
+  );
+}
+
 const LONG_PRESS_MS = 450;
 const MOVE_TOLERANCE = 10;
 
 /**
  * Long-press (touch) or right-click / context-menu key (pointer, keyboard) opens a menu of the
- * item's 3-5 most useful actions (DESIGN.md S6.1). Returns the handlers to spread on the element,
- * the menu node to render once, and `consumeClick()` so the click that ends a long-press doesn't
- * also activate the row.
+ * item's 3-5 most useful actions (DESIGN.md S6.1). Returns the handlers to spread on the element and
+ * `consumeClick()` so the click that ends a long-press doesn't also activate the row. The menu itself
+ * is shown by the shared `ContextMenuProvider`.
  */
 export function useContextMenu(actions: MenuAction[] | undefined) {
-  const [point, setPoint] = useState<{ x: number; y: number } | null>(null);
+  const show = useContext(MenuContext);
   const timer = useRef<number | undefined>(undefined);
   const start = useRef<{ x: number; y: number } | null>(null);
   const suppress = useRef(false);
@@ -28,12 +54,11 @@ export function useContextMenu(actions: MenuAction[] | undefined) {
     window.clearTimeout(timer.current);
     start.current = null;
   };
-  const parts = useMotionParts();
   const open = (x: number, y: number) => {
     void loadMotion();
     haptic('impactMedium');
     suppress.current = true;
-    setPoint({ x, y });
+    if (actions?.length) show({ point: { x, y }, actions });
   };
 
   const enabled = !!actions?.length;
@@ -61,14 +86,11 @@ export function useContextMenu(actions: MenuAction[] | undefined) {
       }
     : {};
 
-  // The popover itself lives in the lazily loaded motion chunk; it renders nothing until a point is set.
-  const menu = parts && actions?.length ? <parts.MenuHost point={point} actions={actions} onClose={() => setPoint(null)} /> : null;
-
   const consumeClick = () => {
     if (!suppress.current) return false;
     suppress.current = false;
     return true;
   };
 
-  return { handlers, menu, consumeClick, enabled };
+  return { handlers, consumeClick, enabled };
 }

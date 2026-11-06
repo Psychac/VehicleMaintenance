@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { IconChevronLeft, IconPlus } from '../components/icons';
-import { dataToSqliteFile, isLocalMode, restoreAll, sqliteFileToData, supabase } from '../lib/db';
+import { dataToSqliteFile, isLocalMode, restoreAll, sqliteFileToData, storageStatus, supabase } from '../lib/db';
 import { fmtShortDate, today } from '../lib/format';
 import type { AllData, BackupFile, Vehicle } from '../lib/types';
 import { Banner, Button, IconButton, ListGroup, Row, ScreenHeader, Sheet, useToast } from '../ui';
@@ -183,6 +183,11 @@ export function Storage() {
     <>
       <PushedHeader title="Storage" />
       <div className="screen">
+        {isLocalMode && !storageStatus.persistent && (
+          <Banner tone="warning">
+            Not saving to this device right now{storageStatus.reason ? ': ' + storageStatus.reason : ''}.
+          </Banner>
+        )}
         <StorageSettings />
       </div>
     </>

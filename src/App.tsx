@@ -19,6 +19,7 @@ import {
   Banner,
   Button,
   CompletionProvider,
+  ContextMenuProvider,
   EmptyState,
   IconButton,
   ListGroup,
@@ -118,7 +119,9 @@ export default function App() {
   return (
     <ToastProvider>
       <CompletionProvider>
-        <Root />
+        <ContextMenuProvider>
+          <Root />
+        </ContextMenuProvider>
       </CompletionProvider>
     </ToastProvider>
   );
@@ -392,9 +395,15 @@ function Root() {
           {(isLocalMode && !storageStatus.persistent) || (!isLocalMode && !online) || notice || error ? (
             <div className="banners">
               {isLocalMode && !storageStatus.persistent && (
-                <Banner tone="warning" action={{ label: 'Back up now', onPress: () => navigate({ tab: 'more', sub: 'backup' }) }}>
-                  Your data won't be saved in this browser. Download a backup, and close other Vehicle Log tabs.
-                </Banner>
+                storageStatus.locked ? (
+                  <Banner tone="warning" action={{ label: 'Retry', onPress: () => window.location.reload() }}>
+                    Vehicle Log is open in another tab or window, so this copy can't save your data. Close the other one, then retry.
+                  </Banner>
+                ) : (
+                  <Banner tone="warning" action={{ label: 'Back up now', onPress: () => navigate({ tab: 'more', sub: 'backup' }) }}>
+                    This browser can't save data on this device, so changes are lost when you close the app. Back up to keep them.
+                  </Banner>
+                )
               )}
               {!isLocalMode && !online && <Banner tone="offline">You're offline. Changes can't be saved until you reconnect.</Banner>}
               {notice && (

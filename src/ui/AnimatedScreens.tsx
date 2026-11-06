@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 import { AnimatePresence, animate, m, useDragControls, useMotionValue, useReducedMotion, type Variants } from 'motion/react';
 import { motionValues, spring, springs, fadeMotion } from '../design/tokens';
 import { resolveDrag } from './gestures';
@@ -29,7 +29,7 @@ const variants: Variants = {
       ? { x: -motionValues.enterOffsetMd, opacity: 0, transition: { x: spring.smooth, opacity: fadeMotion.exit } }
       : k === 'back'
         ? { x: '100%', transition: { x: spring.smooth } }
-        : { opacity: 0, transition: { duration: 0 } },
+        : { opacity: 0, transition: { opacity: fadeMotion.exit } },
 };
 
 /** Reduce Motion (S5.6): no slide, no parallax, no drag offset: every change is a plain crossfade. */
@@ -68,13 +68,19 @@ export function AnimatedScreens({
 }
 
 /** One screen. Pushed screens add the edge-swipe back gesture: drag from the left edge, the screen follows 1:1, release velocity decides (S5.3). */
-function Layer({ kind, pushed, onBack, children }: { kind: TransitionKind; pushed: boolean; onBack: () => void; children: ReactNode }) {
+// Must forward its ref: AnimatePresence (popLayout) uses it to measure the leaving screen and take it
+// out of the flow, so the entering screen starts at the top instead of below the old one.
+const Layer = forwardRef<HTMLDivElement, { kind: TransitionKind; pushed: boolean; onBack: () => void; children: ReactNode }>(function Layer(
+  { kind, pushed, onBack, children },
+  ref
+) {
   const x = useMotionValue(0);
   const controls = useDragControls();
   const reduced = useReducedMotion();
 
   return (
     <m.div
+      ref={ref}
       className="ui-screen-layer"
       custom={kind}
       variants={reduced ? reducedVariants : variants}
@@ -101,4 +107,4 @@ function Layer({ kind, pushed, onBack, children }: { kind: TransitionKind; pushe
       {pushed && <div className="ui-edge-swipe" onPointerDown={(e) => controls.start(e)} aria-hidden="true" />}
     </m.div>
   );
-}
+});

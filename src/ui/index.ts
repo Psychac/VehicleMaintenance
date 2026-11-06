@@ -4,7 +4,7 @@ export { Badge, type BadgeTone } from './Badge';
 export { Button, IconButton, Spinner, type ButtonProps, type IconButtonProps } from './Button';
 export { Card } from './Card';
 export { CompletionProvider, useCompletion } from './Completion';
-export { useContextMenu, type MenuAction } from './ContextMenu';
+export { ContextMenuProvider, useContextMenu, type MenuAction } from './ContextMenu';
 export { Fade } from './Fade';
 export { Banner, EmptyState } from './Feedback';
 export { SelectField, TextArea, TextField, Toggle } from './Fields';

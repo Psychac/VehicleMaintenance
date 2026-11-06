@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
+import { useRef, useState, type MutableRefObject, type ReactNode } from 'react';
 import { AnimatePresence, animate, m, useMotionValue, useMotionValueEvent } from 'motion/react';
 import { fadeMotion, spring, springs } from '../design/tokens';
 import { pastThreshold, resolveDrag } from './gestures';
 import { haptic } from './haptics';
 import type { SwipeAction } from './List';
 import { MotionScope } from './MotionScope';
+
+/** Effectively unbounded: the real limit is the row width, applied in onDrag. */
+const BIG = 10000;
 
 /** Wraps the rows of a `live` list: removed rows collapse and fade, siblings slide into the gap. */
 export function LiveBoundary({ children }: { children: ReactNode }) {
@@ -22,7 +25,6 @@ export function LiveItem({ leading, children }: { leading: boolean; children: Re
       className="ui-row-item"
       data-leading={leading || undefined}
       data-live
-      layout="position"
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0, transition: { height: spring.smooth, opacity: fadeMotion.exit } }}
@@ -50,19 +52,11 @@ export function SwipeLayer({
 }) {
   const x = useMotionValue(0);
   const under = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  // Measured once, when a drag starts: reading offsetWidth on mount forced a synchronous layout per row.
+  const widthRef = useRef(0);
   const [armed, setArmed] = useState<'leading' | 'trailing' | null>(null);
   const [revealed, setRevealed] = useState(false);
   useMotionValueEvent(x, 'change', (v) => setRevealed(Math.abs(v) > 1));
-
-  useEffect(() => {
-    const el = under.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setWidth(el.offsetWidth));
-    ro.observe(el);
-    setWidth(el.offsetWidth);
-    return () => ro.disconnect();
-  }, []);
 
   const springBack = (velocity = 0) => animate(x, 0, { type: 'spring', ...springs.smooth, mass: 1, velocity });
 
@@ -91,15 +85,19 @@ export function SwipeLayer({
         style={{ x }}
         drag="x"
         dragDirectionLock
-        dragConstraints={{ left: swipe.trailing ? -width : 0, right: swipe.leading ? width : 0 }}
+        dragConstraints={{ left: swipe.trailing ? -BIG : 0, right: swipe.leading ? BIG : 0 }}
         dragElastic={0}
         dragMomentum={false}
         onDragStart={() => {
           dragged.current = true;
+          widthRef.current = under.current?.offsetWidth ?? 0;
         }}
         onDrag={() => {
-          const off = x.get();
-          const past = pastThreshold(off, width);
+          const w = widthRef.current;
+          // Clamp to the row width (the drag constraints are deliberately loose; see widthRef).
+          const off = Math.max(swipe.trailing ? -w : 0, Math.min(swipe.leading ? w : 0, x.get()));
+          if (off !== x.get()) x.set(off);
+          const past = pastThreshold(off, w);
           const side = past ? (off < 0 ? 'trailing' : 'leading') : null;
           if (side !== armed) {
             setArmed(side);
@@ -109,6 +107,7 @@ export function SwipeLayer({
         onDragEnd={async (_, info) => {
           setTimeout(() => (dragged.current = false), 60);
           const off = x.get();
+          const width = widthRef.current;
           const action = off < 0 ? swipe.trailing : swipe.leading;
           setArmed(null);
           if (action && resolveDrag(off, info.velocity.x, width) === 'commit') {

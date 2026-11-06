@@ -14,9 +14,13 @@ export const fmtKm = (v: number) => `${num().format(v)} km`;
 export const fmtNum = (v: number) => num().format(v);
 export const fmtDec = (v: number) => dec().format(v);
 
+// toLocaleDateString builds a new formatter on every call (slow in a long list); reuse these.
+const dateWithYear = once(() => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }));
+const dateNoYear = once(() => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }));
+
 export function fmtDate(iso: string | null | undefined) {
   if (!iso) return '—';
-  return new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return dateWithYear().format(new Date(iso + 'T00:00:00'));
 }
 
 export function today() {
@@ -50,11 +54,7 @@ export function daysFromToday(iso: string, now: Date = new Date()): number {
 export function fmtShortDate(iso: string | null | undefined, now: Date = new Date()) {
   if (!iso) return '—';
   const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    ...(d.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
-  });
+  return (d.getFullYear() === now.getFullYear() ? dateNoYear() : dateWithYear()).format(d);
 }
 
 /** Humane dates (DESIGN.md S9): "Today", "Yesterday", "3 days ago", then absolute after 7 days. */

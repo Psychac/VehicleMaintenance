@@ -21,22 +21,33 @@ function main(): Store {
   return store;
 }
 
-async function open(): Promise<{ persistent: boolean; reason?: string }> {
+/** The on-device file allows one open copy at a time; a second one gets one of these errors. */
+const LOCKED = /access handle|NoModificationAllowed|locked|in use|another/i;
+const LOCK_RETRIES = 6;
+const LOCK_RETRY_MS = 500;
+
+async function open(): Promise<{ persistent: boolean; reason?: string; locked?: boolean }> {
   const sqlite3 = await getSqlite3();
-  let db: Database;
-  let persistent = true;
+  let db: Database | null = null;
   let reason: string | undefined;
-  try {
-    const pool = await sqlite3.installOpfsSAHPoolVfs({});
-    db = new pool.OpfsSAHPoolDb('/vehicle-log.sqlite3');
-  } catch (e) {
-    // No OPFS (old browser, private window) or the file is locked by another tab.
-    persistent = false;
-    reason = (e as Error).message;
-    db = new sqlite3.oo1.DB(':memory:');
+  let locked = false;
+  // A copy that is closing (or a frozen background instance) usually lets go within a couple of
+  // seconds, so retry before giving up on persistent storage.
+  for (let attempt = 0; attempt <= LOCK_RETRIES && !db; attempt++) {
+    try {
+      const pool = await sqlite3.installOpfsSAHPoolVfs({});
+      db = new pool.OpfsSAHPoolDb('/vehicle-log.sqlite3');
+    } catch (e) {
+      reason = (e as Error).message;
+      locked = LOCKED.test(String((e as Error).name) + ' ' + reason);
+      if (!locked || attempt === LOCK_RETRIES) break;
+      await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
+    }
   }
-  store = new Store(db);
-  return { persistent, reason };
+  const persistent = !!db;
+  // No OPFS (old browser, private window) or still locked: work from a temporary in-memory copy.
+  store = new Store(db ?? new sqlite3.oo1.DB(':memory:'));
+  return persistent ? { persistent } : { persistent, reason, locked };
 }
 
 /** Opens a throwaway in-memory database, optionally loaded from the bytes of a .sqlite file. */
