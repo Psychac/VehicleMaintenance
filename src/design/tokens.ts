@@ -25,6 +25,10 @@ export const layout = {
   marginRegular: 20,
   /** Readable column on tablet / small windows. */
   readable: 672,
+  /** Widest content column on desktop (S4: cap the width, never run edge to edge). */
+  wide: 1200,
+  /** Detail panel beside a list or table. */
+  inspector: 360,
   sidebar: 280,
   tabBar: 56,
   navBar: 52,
@@ -42,6 +46,8 @@ export const breakpoints = {
   tablet: 600,
   /** Desktop: sidebar + content. */
   desktop: 900,
+  /** Wide enough for a table plus an inspector panel side by side. */
+  wide: 1240,
 } as const;
 
 /* ------------------------------------------------------------------ */

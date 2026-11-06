@@ -314,6 +314,7 @@ async function smoke() {
     const backReady = await waitFor(s.ev, "[...document.querySelectorAll('button')].some(b=>b.getAttribute('aria-label')==='Back'&&b.getBoundingClientRect().width>0)", 5000);
     if (!backReady) console.log('BACK MISSING', await s.ev(`JSON.stringify({hash:location.hash,t:document.body.innerText.slice(0,100)})`));
     await s.ev("[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Back'&&b.getBoundingClientRect().width>0)?.click()"); await sleep(900);
+    await waitFor(s.ev, "location.hash === '#home'", 4000);
     check('back returns to Home', (await s.ev('location.hash')) === '#home', await s.ev('location.hash'));
 
     // 4. tab switch animates (crossfade, no slide)
@@ -498,6 +499,83 @@ async function widthProbe() {
   process.exit(0);
 }
 if (process.env.WIDTHPROBE) await widthProbe();
+async function logProbe() {
+  const s = await launch({ width: 1100, height: 800 });
+  await s.send('Page.navigate', { url: BASE + '/#home' }); await sleep(2500);
+  await seed(s);
+  await s.send('Page.navigate', { url: BASE + '/#log' });
+  await waitFor(s.ev, `!!document.querySelector('.ui-table')`, 10000);
+  await sleep(1500);
+  console.log(await s.ev(`JSON.stringify({docH: document.documentElement.scrollHeight, bodyH: document.body.scrollHeight, rows: document.querySelectorAll('tbody tr').length, layers: [...document.querySelectorAll('.ui-screen-layer')].map(l => Math.round(l.getBoundingClientRect().height)), split: (()=>{const e=document.querySelector('.split'); if(!e) return null; const r=e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(e).gridTemplateColumns]})(), insp: (()=>{const e=document.querySelector('.ui-inspector'); if(!e) return null; const r=e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(e).position]})(), sidebars: document.querySelectorAll('.ui-sidebar').length})`));
+  const shot = await s.send('Page.captureScreenshot', { format: 'png' });
+  fs.writeFileSync(process.env.PROBE_OUT, Buffer.from(shot.result.data, 'base64'));
+  s.close();
+  process.exit(0);
+}
+if (process.env.LOGPROBE) await logProbe();
+/* Desktop interactions (DESKTOP=1): table sort, inspector selection, panel actions, shortcuts, no swipe. */
+async function desktopSmoke() {
+  const s = await launch({ width: 1440, height: 900 });
+  const results = [];
+  const check = (name, ok, extra = '') => { results.push(ok); console.log((ok ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '')); };
+  const key = (k) => s.ev(`window.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(k)},bubbles:true}))`);
+  const text = (sel) => s.ev(`document.querySelector(${JSON.stringify(sel)})?.innerText?.replace(/\\s+/g,' ')`);
+  try {
+    await s.send('Page.navigate', { url: BASE + '/#home' }); await sleep(2500);
+    await seed(s);
+    await s.send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+    await s.send('Page.navigate', { url: BASE + '/#home' });
+    await waitFor(s.ev, `!!document.querySelector('.hero-value')`, 15000);
+    await waitFor(s.ev, `!!document.querySelector('.ui-toast-region')`, 10000);
+    await sleep(800);
+    check('sidebar visible, tab bar hidden', await s.ev(`getComputedStyle(document.querySelector('.ui-sidebar')).display!=='none' && getComputedStyle(document.querySelector('.ui-tabbar')).display==='none'`));
+    check('header has Add fill-up, docked bar hidden', (await s.ev(`!![...document.querySelectorAll('.header-actions button')].find(b=>/Add fill-up/.test(b.textContent))`)) && (await s.ev(`getComputedStyle(document.querySelector('.action-bar')).display==='none'`)));
+    check('Home has two columns (attention beside recent)', await s.ev(`(()=>{const a=document.querySelector('.home-attention').getBoundingClientRect(), r=document.querySelector('.home-recent').getBoundingClientRect(); return r.left > a.right - 1 && Math.abs(r.top - a.top) < 4})()`));
+    await key('n'); await sleep(900);
+    check('N opens a new fill-up', await s.ev(`!!document.querySelector('[role=dialog]')`));
+    await s.ev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`); await sleep(700);
+    await key('2'); await sleep(900);
+    check('2 goes to Log', (await s.ev('location.hash')) === '#log');
+    await waitFor(s.ev, `document.querySelectorAll('.ui-table tbody tr').length > 20 && document.querySelectorAll('.ui-screen-layer').length === 1`);
+    await sleep(500);
+    check('Log is a table with 6 columns and many rows', (await s.ev(`document.querySelectorAll('.ui-table th').length`)) === 6 && (await s.ev(`document.querySelectorAll('.ui-table tbody tr').length`)) > 20);
+    const first = await text('.ui-table tbody tr');
+    await s.ev(`document.querySelectorAll('.ui-th-btn')[3].click()`); await sleep(300);
+    const sortedAsc = await text('.ui-table tbody tr');
+    await s.ev(`document.querySelectorAll('.ui-th-btn')[3].click()`); await sleep(300);
+    const sortedDesc = await text('.ui-table tbody tr');
+    check('sorting by cost reorders the table', first !== sortedAsc && sortedAsc !== sortedDesc);
+    check('aria-sort set on the sorted column', (await s.ev(`document.querySelectorAll('.ui-table th')[3].getAttribute('aria-sort')`)) === 'descending');
+    await s.ev(`document.querySelectorAll('.ui-table tbody tr')[2].click()`); await sleep(400);
+    check('selecting a row fills the inspector', /Odometer/.test((await text('.ui-inspector')) || ''), (await text('.ui-inspector') || '').slice(0, 60));
+    check('swipe layers are off with a mouse', await s.ev(`!document.querySelector('.ui-swipe-content')`));
+    await s.ev(`document.querySelector('.ui-inspector .ui-btn[data-variant=secondary]').click()`); await sleep(900);
+    check('Edit in the inspector opens the dialog (centred on desktop)', await s.ev(`!!document.querySelector('.ui-sheet-dialog')`));
+    await s.ev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`); await sleep(700);
+    const rows0 = await s.ev(`document.querySelectorAll('.ui-table tbody tr').length`);
+    await s.ev(`[...document.querySelectorAll('.ui-inspector .ui-btn')].find(b=>b.textContent.trim()==='Delete').click()`); await sleep(1500);
+    check('Delete in the inspector removes the row, with Undo', (await s.ev(`document.querySelectorAll('.ui-table tbody tr').length`)) === rows0 - 1 && /deleted/i.test((await text('.ui-toast')) || ''));
+    await s.ev(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Undo').click()`); await sleep(1500);
+    check('Undo brings it back', (await s.ev(`document.querySelectorAll('.ui-table tbody tr').length`)) === rows0);
+    await key('r'); await sleep(1100);
+    check('R opens Reminders with a detail panel', (await s.ev('location.hash')) === '#log/reminders' && /Mark done today/.test((await text('.ui-inspector')) || ''));
+    const title0 = await text('.ui-inspector-title');
+    await s.ev(`document.querySelectorAll('button.ui-row')[1].click()`); await sleep(400);
+    check('selecting another reminder changes the panel', (await text('.ui-inspector-title')) !== title0);
+    await s.ev(`[...document.querySelectorAll('.ui-inspector .ui-btn')].find(b=>/Mark done today/.test(b.textContent)).click()`);
+    let seen = false; for (let i = 0; i < 40 && !seen; i++) { await sleep(50); seen = await s.ev(`!!document.querySelector('.ui-completion')`); }
+    check('Mark done today plays the completion moment', seen);
+    await key('3'); await sleep(1200);
+    check('Reports: spend and mileage side by side', await s.ev(`(()=>{const b=[...document.querySelectorAll('.reports-grid > section')].map(e=>e.getBoundingClientRect()); return b.length===3 && b[2].left > b[0].right - 1 && Math.abs(b[2].top - b[0].top) < 4 && b[1].top > b[0].bottom - 1})()`));
+    check('no horizontal overflow', (await s.ev('document.documentElement.scrollWidth - innerWidth')) <= 0);
+    const errors = [...new Set(s.errors)];
+    check('no page errors', errors.length === 0, JSON.stringify(errors.slice(0, 2)));
+  } catch (e) { check('desktop smoke ran to completion', false, String(e.stack || e).slice(0, 300)); }
+  s.close();
+  console.log(results.every(Boolean) ? 'ALL PASSED' : results.filter((x) => !x).length + ' FAILED', '(' + results.length + ' checks)');
+  process.exit(results.every(Boolean) ? 0 : 1);
+}
+if (process.env.DESKTOP) await desktopSmoke();
 if (process.env.BARPROBE) await barProbe();
 if (process.env.TRANSITIONS) await transitions();
 if (process.env.SMOKE) await smoke();
@@ -510,6 +588,7 @@ const allConfigs = {
   'phone-390-dark': { width: 390, dark: true },
   'phone-320-light': { width: 320 },
   'desktop-1100-light': { width: 1100, height: 800 },
+  'desktop-1440-light': { width: 1440, height: 900 },
   'phone-390-textx2': { width: 390, fontScale: 200 },
 };
 const configs = process.env.PERF_ONLY ? {} : only.length ? Object.fromEntries(Object.entries(allConfigs).filter(([k]) => only.includes(k))) : allConfigs;

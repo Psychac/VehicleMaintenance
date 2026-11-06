@@ -189,3 +189,20 @@ Totals since the start of the performance work: first-paint JS **463 KB / 143 KB
 ## Information architecture change
 
 Reminders moved from a tab to a header bell (with the overdue count) that opens Reminders as a pushed screen from any tab; Reports became a tab. Tab bar: Home, Log, Reports, More. Old `#reminders` and `#more/reports` links still resolve.
+
+---
+
+## Desktop layout (size class > 900 px)
+
+DESIGN.md S4 says a phone layout scaled up is a fail. Desktop now has its own layouts, verified with `DESKTOP=1 node scripts/verify-ui.mjs <url>` (19 checks, all pass) plus the full audit at 1100 and 1440 px.
+
+- **Width:** content column up to 1200 px (was the 672 px phone column); settings-style screens stay a readable 672 px, left-aligned with the header.
+- **Home:** dashboard. Odometer band, then "Needs attention" beside "Recent" (8 entries), then the summary as a 5-up figure row.
+- **Log:** sortable data table (date, odometer, litres, cost, per litre, km/L; aria-sort, arrow keys, right-click menu) with an inspector panel for the selected entry (Edit, Delete with Undo). Below 1240 px there is no room for the panel, so a row opens the (centred) dialog instead.
+- **Reminders:** list plus detail panel (status, progress line, Mark done today, Edit, Delete); the most urgent reminder is selected by default.
+- **Reports:** monthly spend beside mileage, categories as a full-width row below.
+- **Primary actions** are buttons in the header (with key hints) instead of the docked thumb-zone bar; swipe is off with a mouse (same actions in the menu and panel).
+- **Keyboard:** N new entry, S new service (Home), 1-4 switch section, R reminders. Disabled while typing or when a dialog is open.
+- **Fixes found along the way:** a table wrapper that stopped the sticky header sticking; sort buttons under 44 px wide; a 349 px table squeezed beside the panel at 1100 px.
+
+Not done: tablet-portrait (600-900 px) still uses the phone layout in a centred column; no multi-select or bulk actions in tables.

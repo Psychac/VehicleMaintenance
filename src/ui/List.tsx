@@ -1,6 +1,7 @@
 import { createContext, useContext, useRef, type ReactNode } from 'react';
 import { IconChevronRight } from '../components/icons';
 import { useContextMenu, type MenuAction } from './ContextMenu';
+import { hasFinePointer } from './desktop';
 import { haptic, type HapticKind } from './haptics';
 import { useMotionParts } from './motionLoader';
 import { usePress } from './press';
@@ -112,7 +113,8 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
   const press = usePress<HTMLButtonElement>(disabled);
   const ctx = useContextMenu(disabled ? undefined : menuActions);
   const dragged = useRef(false);
-  const canSwipe = !disabled && !!(swipe?.leading || swipe?.trailing);
+  // Swipe is a touch gesture; with a mouse the same actions are in the right-click menu and the detail panel.
+  const canSwipe = !disabled && !!(swipe?.leading || swipe?.trailing) && !hasFinePointer();
 
   const body = (
     <>

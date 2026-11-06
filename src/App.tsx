@@ -29,6 +29,8 @@ import {
   SkeletonRows,
   ToastProvider,
   loadMotionWhenIdle,
+  useIsDesktop,
+  useShortcuts,
   useDelayedFlag,
   type NavItem,
 } from './ui';
@@ -228,6 +230,18 @@ function Root() {
     if (window.history.state?.pushed) window.history.back();
     else navigate({ tab: route.tab });
   }, [navigate, route.tab]);
+
+  const isDesktop = useIsDesktop();
+  useShortcuts(
+    {
+      '1': () => navigate({ tab: 'home' }),
+      '2': () => navigate({ tab: 'log' }),
+      '3': () => navigate({ tab: 'reports' }),
+      '4': () => navigate({ tab: 'more' }),
+      r: () => navigate({ tab: route.tab, sub: 'reminders' }),
+    },
+    isDesktop && signedIn
+  );
 
   const activeVehicles = useMemo(() => data.vehicles.filter((v) => !v.archived), [data.vehicles]);
   const vehicle = activeVehicles.find((v) => v.id === vehicleId) ?? activeVehicles[0] ?? null;

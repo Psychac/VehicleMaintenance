@@ -3,7 +3,7 @@ import { IconPlus, IconTrash } from '../components/icons';
 import { averageEfficiency, fuelEfficiency, reminderProgress } from '../lib/calc';
 import { fmtDec, fmtKm, fmtMoney, fmtNum, fmtRelDate, today } from '../lib/format';
 import type { FuelLog, ServiceLog } from '../lib/types';
-import { Button, Fade, ListGroup, Roll, Row, ScreenHeader, Skeleton, SkeletonRows, StatGrid, useToast } from '../ui';
+import { Button, Fade, ListGroup, Roll, Row, ScreenHeader, Skeleton, SkeletonRows, StatGrid, useIsDesktop, useShortcuts, useToast } from '../ui';
 import FuelSheet from './FuelSheet';
 import ServiceSheet from './ServiceSheet';
 import { ReminderBadge, deleteWithUndo, dueText, odometerOf, reminderRows, vehicleDetails, type Editing, type VehicleScope } from './shared';
@@ -17,6 +17,8 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
   const toast = useToast();
   const [fuelEdit, setFuelEdit] = useState<Editing<FuelLog>>(null);
   const [serviceEdit, setServiceEdit] = useState<Editing<ServiceLog>>(null);
+  const desktop = useIsDesktop();
+  useShortcuts({ n: () => setFuelEdit('new'), s: () => setServiceEdit('new') }, !loading);
   const { vehicle, fuel, service, reminders } = scope;
 
   const odo = odometerOf(scope);
@@ -39,7 +41,7 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
     ...service.map((s) => ({ kind: 'service' as const, row: s, date: s.date })),
   ]
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 5);
+    .slice(0, desktop ? 8 : 5);
 
   const details = [vehicleDetails(vehicle), vehicle.plate].filter(Boolean).join(' · ');
   const goReminders = () => shell.navigate({ tab: 'home', sub: 'reminders' });
@@ -49,6 +51,14 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
     <>
       <ScreenHeader title={vehicle.name} subtitle={details || undefined} trailing={
           <>
+            <span className="desktop-only header-actions">
+              <Button icon={<IconPlus size={18} />} onClick={() => setFuelEdit('new')} disabled={loading} aria-keyshortcuts="n">
+                Add fill-up <kbd aria-hidden="true">N</kbd>
+              </Button>
+              <Button variant="secondary" onClick={() => setServiceEdit('new')} disabled={loading} aria-keyshortcuts="s">
+                Add service <kbd aria-hidden="true">S</kbd>
+              </Button>
+            </span>
             {shell.switchButton}
             {shell.bellButton}
           </>
@@ -70,7 +80,7 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
               </ListGroup>
             </>
           ) : (
-            <>
+            <div className="home-grid">
               <section className="hero" aria-label="Odometer">
                 <p className="hero-label">Odometer</p>
                 <p className="hero-value">
@@ -89,6 +99,7 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
                 </dl>
               </section>
 
+              <div className="home-attention">
               <ListGroup header="Needs attention" live>
                 {reminders.length === 0 ? (
                   <Row key="none" leading={<IconPlus size={18} />} title="Add a reminder" value="Oil, insurance, tyres" onPress={goReminders} chevron />
@@ -105,7 +116,9 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
                   ]
                 )}
               </ListGroup>
+              </div>
 
+              <div className="home-summary">
               <StatGrid
                 header="Summary"
                 footer={avg ? undefined : 'Mileage appears after two full-tank fill-ups.'}
@@ -117,8 +130,10 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
                   { label: 'Total spent', value: <Roll text={fmtMoney(totalSpend)} /> },
                 ]}
               />
+              </div>
 
               {recent.length > 0 && (
+                <div className="home-recent">
                 <ListGroup header="Recent" live>
                   {recent.map((x) =>
                     x.kind === 'fuel' ? (
@@ -150,8 +165,9 @@ export default function Home({ scope, loading, reload }: { scope: VehicleScope; 
                     )
                   )}
                 </ListGroup>
+                </div>
               )}
-            </>
+            </div>
           )}
         </Fade>
 

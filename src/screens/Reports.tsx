@@ -55,7 +55,8 @@ export default function Reports({ scope, loading }: { scope: VehicleScope; loadi
           <Skeleton h="calc(var(--space-80) * 3)" radius="var(--radius-lg)" />
         ) : (
           <>
-            <section className="report-block" aria-labelledby="r-spend">
+            <div className="reports-grid">
+            <section className="report-block report-wide" aria-labelledby="r-spend">
               <div className="report-head">
                 <h2 id="r-spend" className="t-title3">
                   Monthly spend
@@ -109,6 +110,7 @@ export default function Reports({ scope, loading }: { scope: VehicleScope; loadi
                 </>
               )}
             </section>
+            </div>
           </>
         )}
       </div>

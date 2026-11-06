@@ -21,7 +21,7 @@ export function More({ data }: { data: AllData }) {
   return (
     <>
       <ScreenHeader title="More" trailing={shell.bellButton} />
-      <div className="screen">
+      <div className="screen narrow">
         <ListGroup label="Vehicles">
           <Row title="Vehicles" value={data.vehicles.length} onPress={() => shell.navigate({ tab: 'more', sub: 'vehicles' })} chevron />
         </ListGroup>
@@ -44,7 +44,7 @@ export function Vehicles({ vehicles }: { vehicles: Vehicle[] }) {
   return (
     <>
       <PushedHeader title="Vehicles" />
-      <div className="screen">
+      <div className="screen narrow">
         <ListGroup label="Vehicles">
           {vehicles.map((v) => (
             <Row
@@ -143,7 +143,7 @@ export function Backup({ data, reload }: { data: AllData; reload: () => Promise<
   return (
     <>
       <PushedHeader title="Backup and restore" />
-      <div className="screen">
+      <div className="screen narrow">
         <ListGroup
           header="Download a copy"
           footer={
@@ -182,7 +182,7 @@ export function Storage() {
   return (
     <>
       <PushedHeader title="Storage" />
-      <div className="screen">
+      <div className="screen narrow">
         {isLocalMode && !storageStatus.persistent && (
           <Banner tone="warning">
             Not saving to this device right now{storageStatus.reason ? ': ' + storageStatus.reason : ''}.
@@ -202,7 +202,7 @@ export function Account() {
   return (
     <>
       <PushedHeader title="Account" />
-      <div className="screen">
+      <div className="screen narrow">
         <ListGroup label="Signed in">
           <Row title="Email" value={email ?? '…'} />
         </ListGroup>

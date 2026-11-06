@@ -106,16 +106,59 @@ body {
   }
 }
 
+/* Desktop (S4): sidebar + wide content. Screens use the width: grids, tables and an inspector panel,
+   not the phone column. The docked action bar is replaced by buttons in the header. */
 @media (min-width: 900px) {
   .main {
+    --column-pad: max(var(--space-32), calc((100% - var(--layout-wide)) / 2 + var(--space-32)));
     margin-left: var(--layout-sidebar);
     padding-bottom: 0;
   }
   .screen {
     min-height: calc(100dvh - var(--layout-nav-bar) - var(--space-12) - env(safe-area-inset-top));
+    padding-top: var(--space-16);
+    padding-bottom: var(--space-48);
+  }
+  .screen:has(> .action-bar) {
+    padding-bottom: var(--space-48);
   }
   .action-bar {
-    bottom: 0;
+    display: none;
+  }
+  /* Settings-style screens stay a readable column, left-aligned with the header. */
+  .screen.narrow {
+    max-width: calc(var(--column-pad) + var(--layout-readable) + var(--space-32));
+  }
+  /* Small controls don't stretch across a wide page. */
+  .screen > .ui-seg,
+  .screen > .ui-field {
+    max-width: calc(var(--layout-readable) / 2);
+  }
+  .ui-toast-region {
+    inset-block-end: var(--space-24);
+  }
+}
+
+/* A list or table with a detail panel beside it. */
+.split-main {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-24);
+  align-content: start;
+}
+.table-caption {
+  margin: 0 0 var(--space-8);
+  font: var(--type-footnote);
+  letter-spacing: var(--tracking-footnote);
+  color: var(--color-label-secondary);
+}
+@media (min-width: 1240px) {
+  .split,
+  .ui-fade:has(> .ui-inspector) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--layout-inspector);
+    gap: var(--space-32);
+    align-items: start;
   }
 }
 
@@ -432,4 +475,61 @@ body {
   color: var(--color-destructive-fg);
   font: var(--type-caption2);
   pointer-events: none;
+}
+
+/* Home and Reports as dashboards on desktop. */
+.home-grid,
+.reports-grid {
+  display: grid;
+  gap: var(--space-24);
+}
+.header-actions .ui-btn {
+  white-space: nowrap;
+}
+@media (min-width: 900px) {
+  .home-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-32) var(--space-48);
+    align-items: start;
+  }
+  .home-grid > .hero,
+  .home-grid > .home-summary {
+    grid-column: 1 / -1;
+  }
+  .home-grid > .home-attention {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .home-grid > .home-recent {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .home-grid > .home-summary {
+    grid-row: 3;
+  }
+  .home-summary .ui-stats {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .hero {
+    padding-top: var(--space-16);
+  }
+  .reports-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-32) var(--space-48);
+    align-items: start;
+  }
+  /* Spend and mileage side by side (a chart scales with its width, so neither may span the page);
+     categories get the full-width row below. */
+  .reports-grid > :nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .reports-grid > :nth-child(3) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .reports-grid > :nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
