@@ -103,7 +103,7 @@ const AUDIT = `(() => {
   return JSON.stringify(out);
 })()`;
 
-const ALLOWED_PX = new Set([11, 12, 13, 15, 16, 17, 20, 22, 28, 34]);
+const ALLOWED_PX = new Set([11, 12, 13, 14, 15, 16, 18, 21, 26, 32]);
 
 /* ------------------------------------------------------------ run helpers */
 async function waitFor(ev, expr, ms = 8000) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await ev(expr).catch(() => false)) return true; await sleep(100); } return false; }
@@ -126,6 +126,11 @@ async function seed(s) {
 async function audit(s, name) {
   const r = JSON.parse(await s.ev(AUDIT));
   r.name = name;
+  if (process.env.SHOTS) {
+    const shot = await s.send('Page.captureScreenshot', { format: 'png' });
+    fs.mkdirSync(process.env.SHOTS, { recursive: true });
+    fs.writeFileSync(path.join(process.env.SHOTS, name.replace(/[^a-z0-9]+/gi, '_') + '.png'), Buffer.from(shot.result.data, 'base64'));
+  }
   r.badFonts = Object.keys(r.fonts).filter((k) => !ALLOWED_PX.has(Number(k)));
   r.cls = await s.ev('window.__cls');
   return r;
@@ -223,13 +228,15 @@ async function perf(s) {
 
 /* ------------------------------------------------------------ main */
 const report = { base: BASE, runs: {} };
-const configs = process.env.PERF_ONLY ? {} : {
+const only = (process.env.CONFIGS || '').split(',').filter(Boolean);
+const allConfigs = {
   'phone-390-light': { width: 390 },
   'phone-390-dark': { width: 390, dark: true },
   'phone-320-light': { width: 320 },
   'desktop-1100-light': { width: 1100, height: 800 },
   'phone-390-textx2': { width: 390, fontScale: 200 },
 };
+const configs = process.env.PERF_ONLY ? {} : only.length ? Object.fromEntries(Object.entries(allConfigs).filter(([k]) => only.includes(k))) : allConfigs;
 for (const [name, cfg] of Object.entries(configs)) {
   const s = await launch(cfg);
   try {
@@ -240,6 +247,7 @@ for (const [name, cfg] of Object.entries(configs)) {
   } catch (e) { report.runs[name] = { error: String(e) }; }
   s.close();
 }
+if (process.env.SKIP_PERF) { fs.writeFileSync(OUT, JSON.stringify(report, null, 1)); console.log('wrote', OUT); process.exit(0); }
 // Perf on a throttled CPU (4x ≈ mid-range phone), seeded, production build.
 {
   const s = await launch({ width: 390, cpu: 4 });

@@ -1091,6 +1091,10 @@ button.ui-row:disabled,
 .ui-roll-inner {
   display: inline-flex;
 }
+.ui-roll-static {
+  /* inline-flex items would otherwise collapse a lone space ("15.59 km/L" → "15.59km/L"). */
+  white-space: pre;
+}
 .ui-roll-digit {
   display: inline-block;
   height: 1lh;

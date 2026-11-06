@@ -72,7 +72,7 @@ describe('scales', () => {
   });
 
   it('radius tokens match the spec', () => {
-    expect(radius).toEqual({ xs: 6, sm: 10, md: 14, lg: 20, xl: 28, full: 9999 });
+    expect(radius).toEqual({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 });
   });
 });
 
@@ -97,8 +97,8 @@ describe('buildTokenCss', () => {
   const css = buildTokenCss();
 
   it('emits light, dark (media + manual) and reduced-motion blocks', () => {
-    expect(css).toContain('--color-accent:#1F6B73');
-    expect(css).toContain('--color-accent:#5BB5BD');
+    expect(css).toContain('--color-accent:#0D5C63');
+    expect(css).toContain('--color-accent:#62BFC6');
     expect(css).toContain('prefers-color-scheme:dark');
     expect(css).toContain(':root[data-theme="dark"]');
     expect(css).toContain('prefers-reduced-motion:reduce');

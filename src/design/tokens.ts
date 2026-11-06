@@ -48,29 +48,30 @@ export const breakpoints = {
 /* Radius (S3.4)                                                       */
 /* ------------------------------------------------------------------ */
 
-export const radius = { xs: 6, sm: 10, md: 14, lg: 20, xl: 28, full: 9999 } as const;
+/** Clean direction: one small, crisp radius family (controls 8, groups 12, sheets 16). */
+export const radius = { xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 } as const;
 
 /* ------------------------------------------------------------------ */
-/* Typography (S3.1): one system family, scaled in rem for user zoom   */
+/* Typography (S3.1): Geist (sans) + Geist Mono (odometer only), scaled in rem   */
 /* ------------------------------------------------------------------ */
 
-const FONT_SANS =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
-const FONT_MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+// Self-hosted via @fontsource-variable (src/design/fonts.ts): works offline, no third-party request.
+const FONT_SANS = '"Geist Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const FONT_MONO = '"Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
 
 /** [size px, line-height px, weight, tracking em] */
 export const type = {
-  largeTitle: [34, 41, 700, -0.005],
-  title1: [28, 34, 700, -0.004],
-  title2: [22, 28, 700, -0.003],
-  title3: [20, 25, 600, -0.002],
-  headline: [17, 22, 600, -0.004],
-  body: [17, 22, 400, -0.004],
-  callout: [16, 21, 400, -0.003],
-  subhead: [15, 20, 400, -0.002],
-  footnote: [13, 18, 400, -0.001],
-  caption: [12, 16, 500, 0],
-  caption2: [11, 13, 500, 0.001],
+  largeTitle: [32, 38, 600, -0.025],
+  title1: [26, 32, 600, -0.02],
+  title2: [21, 27, 600, -0.015],
+  title3: [18, 24, 600, -0.01],
+  headline: [16, 22, 600, -0.006],
+  body: [16, 22, 400, -0.003],
+  callout: [15, 21, 400, -0.002],
+  subhead: [14, 20, 400, -0.001],
+  footnote: [13, 18, 400, 0],
+  caption: [12, 16, 500, 0.005],
+  caption2: [11, 13, 500, 0.02],
 } as const satisfies Record<string, readonly [number, number, number, number]>;
 
 export type TypeToken = keyof typeof type;
@@ -79,8 +80,8 @@ export type TypeToken = keyof typeof type;
 /* Colour (S3.2): semantic roles, light + dark                         */
 /* ------------------------------------------------------------------ */
 /*
- * Accent: petrol teal. Neutrals are tinted warm (hue ~80, 2-4% saturation) so greys read as
- * paper and graphite rather than dead grey. Status colours are tuned away from the accent hue:
+ * Accent: deep petrol teal. Neutrals are tinted cool toward the accent hue (2-4% saturation) so
+ * greys read as clean slate rather than dead grey. Status colours are tuned away from the accent hue:
  * success leans yellow-green, warning amber, destructive warm red.
  *
  * Deviation from S3.2: label.secondary is 78% (light) / 62% (dark) instead of 60% so it clears
@@ -120,54 +121,54 @@ export interface Palette {
 
 export const colors: { light: Palette; dark: Palette } = {
   light: {
-    bgPrimary: '#FBFAF7',
-    bgGrouped: '#F3F1EC',
+    bgPrimary: '#FAFBFB',
+    bgGrouped: '#FAFBFB',
     bgElevated: '#FFFFFF',
-    bgElevated2: '#F3F1EC',
+    bgElevated2: '#F0F3F3',
     bgRaised: '#FFFFFF',
-    labelPrimary: 'rgb(28 27 24 / 0.92)',
-    labelSecondary: 'rgb(60 58 52 / 0.78)',
-    labelTertiary: 'rgb(60 58 52 / 0.30)',
-    separator: 'rgb(60 58 52 / 0.29)',
-    accent: '#1F6B73',
+    labelPrimary: 'rgb(14 22 24 / 0.92)',
+    labelSecondary: 'rgb(38 52 55 / 0.78)',
+    labelTertiary: 'rgb(38 52 55 / 0.30)',
+    separator: 'rgb(38 52 55 / 0.14)',
+    accent: '#0D5C63',
     accentFg: '#FFFFFF',
-    accentTint: 'rgb(31 107 115 / 0.12)',
-    success: '#366D1C',
-    successTint: 'rgb(54 109 28 / 0.13)',
+    accentTint: 'rgb(13 92 99 / 0.10)',
+    success: '#3F6A14',
+    successTint: 'rgb(63 106 20 / 0.12)',
     warning: '#9A5A00',
     warningTint: 'rgb(154 90 0 / 0.13)',
     destructive: '#BC2E25',
     destructiveFg: '#FFFFFF',
     destructiveTint: 'rgb(188 46 37 / 0.12)',
-    chartOther: '#8A867C',
-    scrim: 'rgb(20 18 14 / 0.40)',
+    chartOther: '#7D8C8E',
+    scrim: 'rgb(10 20 22 / 0.40)',
     thumb: '#FFFFFF',
-    pressFill: 'rgb(28 27 24 / 0.07)',
+    pressFill: 'rgb(14 22 24 / 0.06)',
   },
   dark: {
-    bgPrimary: '#121211',
-    bgGrouped: '#0B0B0A',
-    bgElevated: '#1D1C1A',
-    bgElevated2: '#2A2926',
-    bgRaised: '#3B3A36',
-    labelPrimary: 'rgb(255 252 246 / 0.96)',
-    labelSecondary: 'rgb(235 232 222 / 0.62)',
-    labelTertiary: 'rgb(235 232 222 / 0.30)',
-    separator: 'rgb(84 82 76 / 0.60)',
-    accent: '#5BB5BD',
-    accentFg: '#08191B',
-    accentTint: 'rgb(91 181 189 / 0.16)',
-    success: '#8CCB5E',
-    successTint: 'rgb(140 203 94 / 0.16)',
+    bgPrimary: '#0C1112',
+    bgGrouped: '#0C1112',
+    bgElevated: '#141B1C',
+    bgElevated2: '#1E2829',
+    bgRaised: '#2A3637',
+    labelPrimary: 'rgb(240 247 247 / 0.96)',
+    labelSecondary: 'rgb(214 228 229 / 0.64)',
+    labelTertiary: 'rgb(214 228 229 / 0.30)',
+    separator: 'rgb(214 228 229 / 0.12)',
+    accent: '#62BFC6',
+    accentFg: '#06191B',
+    accentTint: 'rgb(98 191 198 / 0.16)',
+    success: '#9BCB6A',
+    successTint: 'rgb(155 203 106 / 0.16)',
     warning: '#FFB340',
     warningTint: 'rgb(255 179 64 / 0.16)',
     destructive: '#FF6B60',
     destructiveFg: '#1A0604',
     destructiveTint: 'rgb(255 107 96 / 0.16)',
-    chartOther: '#8D8A80',
-    scrim: 'rgb(0 0 0 / 0.40)',
+    chartOther: '#7F8F91',
+    scrim: 'rgb(0 0 0 / 0.45)',
     thumb: '#FFFFFF',
-    pressFill: 'rgb(255 252 246 / 0.08)',
+    pressFill: 'rgb(240 247 247 / 0.08)',
   },
 };
 
@@ -175,8 +176,8 @@ export const colors: { light: Palette; dark: Palette } = {
 /* Elevation and materials (S3.5): base, raised, overlay               */
 /* ------------------------------------------------------------------ */
 
-/** Shadow tint: warm, never pure black at high opacity. */
-const SHADOW_TINT = '40 34 20';
+/** Shadow tint: cool, never pure black at high opacity. */
+const SHADOW_TINT = '16 28 30';
 
 const elevation = {
   light: {
@@ -193,8 +194,8 @@ const elevation = {
 } as const;
 
 const material = {
-  light: { bar: 'rgb(251 250 247 / 0.78)', barSolid: '#FBFAF7' },
-  dark: { bar: 'rgb(18 18 17 / 0.72)', barSolid: '#121211' },
+  light: { bar: 'rgb(250 251 251 / 0.80)', barSolid: '#FAFBFB' },
+  dark: { bar: 'rgb(12 17 18 / 0.74)', barSolid: '#0C1112' },
 } as const;
 
 const MATERIAL_FILTER = 'blur(20px) saturate(180%)';
