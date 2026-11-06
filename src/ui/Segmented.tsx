@@ -1,6 +1,4 @@
 import { useRef, type KeyboardEvent } from 'react';
-import { motion } from 'motion/react';
-import { spring } from '../design/tokens';
 import { haptic } from './haptics';
 import { usePress } from './press';
 
@@ -10,8 +8,8 @@ export interface SegmentOption<T extends string> {
 }
 
 /**
- * The selection pill slides between segments with spring.snappy (a single transform-only element,
- * interruptible and following rapid taps) and fires a selection haptic. Arrow keys move selection.
+ * The selection pill slides between segments with spring.snappy (a single transform-only CSS transition,
+ * retargeting from its current position on rapid taps) and fires a selection haptic. Arrow keys move selection.
  */
 export function Segmented<T extends string>({
   options,
@@ -43,15 +41,9 @@ export function Segmented<T extends string>({
   };
 
   return (
-    <div className="ui-seg" role="radiogroup" aria-label={label} style={{ ['--n' as string]: options.length }}>
-      {/* One pill, moved by transform only. initial={false}: it is already in place on mount, so it can never fly in. */}
-      <motion.span
-        className="ui-seg-pill"
-        aria-hidden="true"
-        initial={false}
-        animate={{ x: `${Math.max(0, options.findIndex((o) => o.value === value)) * 100}%` }}
-        transition={spring.snappy}
-      />
+    <div className="ui-seg" role="radiogroup" aria-label={label} style={{ ['--n' as string]: options.length, ['--i' as string]: Math.max(0, options.findIndex((o) => o.value === value)) }}>
+      {/* One pill, moved by a CSS transform transition only: it can only animate when the index changes, never on mount. */}
+      <span className="ui-seg-pill" aria-hidden="true" />
       {options.map((o, i) => (
         <Segment
           key={o.value}

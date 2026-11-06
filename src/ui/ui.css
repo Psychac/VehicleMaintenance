@@ -716,6 +716,8 @@ button.ui-row:disabled,
   width: calc((100% - var(--space-4)) / var(--n));
   border-radius: calc(var(--radius-md) - var(--space-2));
   pointer-events: none;
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform var(--spring-snappy-ms) var(--spring-snappy);
   background: var(--color-bg-raised);
   box-shadow: var(--shadow-raised);
 }
