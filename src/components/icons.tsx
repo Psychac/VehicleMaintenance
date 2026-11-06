@@ -156,3 +156,13 @@ export const IconInfo = (p: P) => (
     <path d="M12 11v5M12 8h.01" />
   </Svg>
 );
+export const IconChevronLeft = (p: P) => (
+  <Svg {...p}>
+    <path d="m15 6-6 6 6 6" />
+  </Svg>
+);
+export const IconChevronDown = (p: P) => (
+  <Svg {...p}>
+    <path d="m6 9 6 6 6-6" />
+  </Svg>
+);

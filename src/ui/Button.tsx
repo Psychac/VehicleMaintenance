@@ -27,6 +27,8 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   loading?: boolean;
   fullWidth?: boolean;
   icon?: ReactNode;
+  /** After the label (e.g. a chevron). */
+  trailingIcon?: ReactNode;
   /** Defaults: primary → impactLight, destructive → warning, others none. `false` to silence. */
   haptic?: HapticKind | false;
 }
@@ -48,6 +50,7 @@ export function Button({
   loading = false,
   fullWidth = false,
   icon,
+  trailingIcon,
   haptic: hapticKind,
   disabled,
   onClick,
@@ -81,7 +84,8 @@ export function Button({
     >
       <span className="ui-btn-label">
         {icon}
-        {children}
+        <span className="ui-btn-text">{children}</span>
+        {trailingIcon}
       </span>
       {loading && (
         <span className="ui-btn-spinner">

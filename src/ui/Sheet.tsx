@@ -167,11 +167,12 @@ function BottomSheet({ onClose, title, action, children, dirty = false, detents 
 
   // Enter, then exit when AnimatePresence says we're leaving. Both are springs from the live value,
   // so a drag in flight is never interrupted by a jump.
+  // Runs on mount and whenever the opening detent changes (e.g. a detail view becoming a form).
   useEffect(() => {
     const a = animate(y, stops[0], { type: 'spring', ...springs.smooth, mass: 1 });
     return () => a.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [stops[0]]);
   useEffect(() => {
     if (isPresent) return;
     animate(y, H, { type: 'spring', ...springs.smooth, mass: 1 }).then(safeToRemove);

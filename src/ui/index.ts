@@ -11,7 +11,7 @@ export { AppNav, ScreenHeader, type NavItem } from './Nav';
 export { Segmented, type SegmentOption } from './Segmented';
 export { Sheet, type SheetProps } from './Sheet';
 export { Skeleton, SkeletonRow, SkeletonRows, useDelayedFlag } from './Skeleton';
-export { ToastProvider, useToast } from './Toast';
+export { ToastProvider, useToast, type ToastInput } from './Toast';
 export { useMediaQuery } from './useMediaQuery';
 export { usePress } from './press';
 export { MotionConfig } from 'motion/react';

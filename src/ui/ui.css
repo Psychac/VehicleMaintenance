@@ -138,9 +138,18 @@
   opacity: 1;
   cursor: progress;
 }
+.ui-btn {
+  min-width: 0;
+  max-width: 100%;
+}
+.ui-btn-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .ui-btn-label {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
   gap: var(--space-8);
   transition: opacity var(--fade-standard);
 }
@@ -987,7 +996,7 @@ button.ui-row:disabled,
   align-items: center;
   box-sizing: border-box;
   height: calc(var(--layout-nav-bar) + env(safe-area-inset-top));
-  padding: env(safe-area-inset-top) var(--space-8) 0;
+  padding: env(safe-area-inset-top) calc(var(--column-pad, var(--margin-x)) - var(--space-8)) 0;
   background: transparent;
   box-shadow: 0 var(--hairline) 0 transparent;
   transition:
@@ -1000,6 +1009,7 @@ button.ui-row:disabled,
   box-shadow: 0 var(--hairline) 0 var(--color-separator);
 }
 .ui-navbar-side {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -1018,7 +1028,7 @@ button.ui-row:disabled,
 }
 .ui-large-title {
   position: relative;
-  padding: var(--space-4) var(--margin-x) var(--space-16);
+  padding: var(--space-4) var(--column-pad, var(--margin-x)) var(--space-16);
 }
 .ui-large-title h1 {
   margin: 0;
