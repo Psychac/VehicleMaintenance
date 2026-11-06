@@ -1,5 +1,5 @@
 import { currentOdometer, reminderStatus, type ReminderStatus } from '../lib/calc';
-import { deleteRow, restoreAll } from '../lib/db';
+import { deleteRow, restoreAll, updateRow } from '../lib/db';
 import { fmtKm, fmtShortDate, today } from '../lib/format';
 import type { AllData, FuelLog, Reminder, ServiceLog, TableName, Tables, Vehicle } from '../lib/types';
 import { Badge, type BadgeTone, type ToastInput } from '../ui';
@@ -85,3 +85,30 @@ export function dueText(s: ReminderStatus): string {
 
 /** "2019 Honda City" style line, or null. */
 export const vehicleDetails = (v: Vehicle) => [v.year, v.make, v.model].filter(Boolean).join(' ') || null;
+
+/**
+ * One-tap "done today": stamps today's date and the current odometer on a reminder, plays the
+ * completion moment, and offers Undo (restoring exactly what was there before).
+ */
+export async function markDoneNow(
+  r: Reminder,
+  odometer: number,
+  toast: (t: ToastInput) => void,
+  celebrate: () => void,
+  reload: () => Promise<void>
+) {
+  const previous = { last_done_date: r.last_done_date ?? null, last_done_odometer: r.last_done_odometer ?? null };
+  await updateRow('reminders', r.id, { last_done_date: today(), last_done_odometer: odometer });
+  await reload();
+  celebrate();
+  toast({
+    message: `${r.title} marked done`,
+    action: {
+      label: 'Undo',
+      onPress: async () => {
+        await updateRow('reminders', r.id, previous);
+        await reload();
+      },
+    },
+  });
+}

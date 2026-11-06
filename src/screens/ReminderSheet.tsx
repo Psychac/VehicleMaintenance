@@ -3,7 +3,7 @@ import { reminderStatus } from '../lib/calc';
 import { insertRow, updateRow } from '../lib/db';
 import { fmtKm, fmtShortDate, numOrNull, strOrNull, today } from '../lib/format';
 import type { Reminder } from '../lib/types';
-import { Button, ListGroup, Row, Sheet, TextArea, TextField, useToast } from '../ui';
+import { Button, ListGroup, Row, Sheet, TextArea, TextField, useCompletion, useToast } from '../ui';
 import { FailureBanner, FormStack, SaveButton, useEntryForm, useOpenKey } from './forms';
 import { ReminderBadge, deleteWithUndo, dueText, type Editing } from './shared';
 
@@ -24,6 +24,8 @@ interface Props {
   editing: Editing<Reminder>;
   vehicleId: string;
   odometer: number;
+  /** Open on the detail view (default) or straight into the edit form. */
+  startMode?: 'detail' | 'edit';
   onClose: () => void;
   reload: () => Promise<void>;
 }
@@ -38,12 +40,13 @@ export default function ReminderSheet(props: Props) {
   return <ReminderSheetInner key={useOpenKey(props.editing)} {...props} />;
 }
 
-function ReminderSheetInner({ editing, vehicleId, odometer, onClose, reload }: Props) {
+function ReminderSheetInner({ editing, vehicleId, odometer, startMode = 'detail', onClose, reload }: Props) {
   const toast = useToast();
+  const celebrate = useCompletion();
   const form = useEntryForm();
   const [snap] = useState(editing);
   const reminder = snap === 'new' || snap === null ? null : snap;
-  const [mode, setMode] = useState<Mode>(reminder ? 'detail' : 'edit');
+  const [mode, setMode] = useState<Mode>(reminder ? startMode : 'edit');
   const id = 'reminder-form';
 
   const status = reminder ? reminderStatus(reminder, odometer, today()) : null;
@@ -80,6 +83,7 @@ function ReminderSheetInner({ editing, vehicleId, odometer, onClose, reload }: P
       });
       await reload();
       onClose();
+      celebrate();
       toast({ message: `${reminder.title} marked done` });
     });
   });

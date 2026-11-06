@@ -39,6 +39,7 @@ p {
 /* ---------------------------------------------------------------- Layout */
 
 .main {
+  position: relative;
   /* One horizontal inset for the whole column: the margin on phones, a centred readable column on wide screens. */
   --column-pad: max(var(--margin-x), calc((100% - var(--layout-readable)) / 2 + var(--margin-x)));
   min-height: 100dvh;

@@ -9,7 +9,7 @@ Plan state: `[x]` done, `[ ]` to do.
 - [x] 2. Tokens (`src/design/tokens.ts`; accent petrol teal; 4 tabs; `motion` approved)
 - [x] 3. Components (`src/ui/`, dev gallery at `/#gallery`)
 - [x] 4. Screens (4-tab shell, `src/screens/`; old `components/` and `styles.css` deleted)
-- [ ] 5. Motion pass
+- [x] 5. Motion pass (`ui/gestures.ts`, `ScreenTransition`, live lists, swipe, menus, roll, completion, pull-to-refresh)
 - [ ] 6. Verify
 
 ---

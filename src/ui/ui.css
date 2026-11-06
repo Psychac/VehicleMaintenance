@@ -833,7 +833,8 @@ button.ui-row:disabled,
 .ui-toast-region {
   position: fixed;
   z-index: var(--z-toast);
-  inset: auto var(--margin-x) calc(var(--layout-tab-bar) + env(safe-area-inset-bottom) + var(--space-12));
+  /* Clears the tab bar and the docked action bar above it. */
+  inset: auto var(--margin-x) calc(var(--layout-tab-bar) + env(safe-area-inset-bottom) + var(--layout-button-large) + var(--space-16) + var(--space-8));
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -982,7 +983,7 @@ button.ui-row:disabled,
     box-shadow: calc(var(--hairline)) 0 0 var(--color-separator);
   }
   .ui-toast-region {
-    inset-block-end: var(--space-24);
+    inset-block-end: calc(var(--layout-button-large) + var(--space-16) + var(--space-8));
     left: var(--layout-sidebar);
   }
 }
@@ -1061,5 +1062,241 @@ button.ui-row:disabled,
   }
   .ui-skeleton::after {
     animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- Motion pass (step 5) */
+
+.ui-fade {
+  display: grid;
+  gap: var(--space-24);
+}
+
+/* Digit roll: a one-line window over a 0-9 strip, moved with spring.smooth in CSS. */
+.ui-roll {
+  display: inline-flex;
+}
+.ui-roll-inner {
+  display: inline-flex;
+}
+.ui-roll-digit {
+  display: inline-block;
+  height: 1lh;
+  overflow: hidden;
+}
+.ui-roll-strip {
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc(var(--d) * -1lh));
+  transition: transform var(--spring-smooth-ms) var(--spring-smooth);
+}
+.ui-roll-strip > span {
+  display: block;
+  height: 1lh;
+}
+
+/* Completion moment */
+.ui-completion-region {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.ui-completion {
+  display: grid;
+  place-items: center;
+  width: var(--space-80);
+  height: var(--space-80);
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  box-shadow: var(--shadow-overlay);
+}
+.ui-completion-check {
+  width: var(--space-40);
+  height: var(--space-40);
+}
+.ui-completion-check path {
+  stroke: currentColor;
+  stroke-width: calc(var(--icon-stroke) * 1.6);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Context menu */
+.ui-menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast);
+}
+.ui-menu {
+  position: fixed;
+  z-index: calc(var(--z-toast) + 1);
+  display: grid;
+  min-width: calc(var(--space-80) * 2.5);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  corner-shape: var(--corner-shape);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-overlay);
+}
+@supports (backdrop-filter: blur(1px)) {
+  .ui-menu {
+    background: var(--material-bar);
+    backdrop-filter: var(--material-filter);
+  }
+}
+.ui-menu-item {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: var(--layout-hit);
+  padding-inline: var(--space-12);
+  border-radius: calc(var(--radius-md) - var(--space-4));
+  font: var(--type-body);
+  letter-spacing: var(--tracking-body);
+  cursor: pointer;
+  transition: background-color var(--fade-fast);
+}
+.ui-menu-item[data-pressed] {
+  background: var(--color-press-fill);
+  transition: none;
+}
+.ui-menu-item[data-destructive] {
+  color: var(--color-destructive);
+}
+.ui-menu-item:focus-visible {
+  outline: var(--focus-width) solid var(--color-accent);
+  outline-offset: calc(var(--focus-width) * -1);
+}
+@media (hover: hover) {
+  .ui-menu-item:hover:not([data-pressed]) {
+    background: var(--color-press-fill);
+  }
+}
+
+/* Rows: long-press must not select text or show the OS callout; collapse needs clipping. */
+.ui-row {
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ui-row:focus-visible {
+  outline-offset: calc(var(--focus-width) * -1);
+}
+.ui-row-item {
+  position: relative;
+}
+.ui-row-item[data-live] {
+  overflow: hidden;
+}
+
+/* Swipe actions: coloured panels revealed underneath the row as it slides. */
+.ui-swipe-under {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.ui-swipe-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-inline: var(--space-16);
+}
+.ui-swipe-action[data-side='leading'] {
+  justify-content: flex-start;
+}
+.ui-swipe-action[data-side='trailing'] {
+  justify-content: flex-end;
+}
+.ui-swipe-action[data-tone='positive'] {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+}
+.ui-swipe-action[data-tone='destructive'] {
+  background: var(--color-destructive);
+  color: var(--color-destructive-fg);
+}
+.ui-swipe-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font: var(--type-headline);
+  letter-spacing: var(--tracking-headline);
+  transition: transform var(--spring-snappy-ms) var(--spring-snappy);
+}
+.ui-swipe-action[data-armed] .ui-swipe-label {
+  transform: scale(1.1);
+}
+.ui-swipe-content {
+  position: relative;
+  background: var(--color-bg-elevated);
+}
+
+/* Pull to refresh */
+.ui-pull {
+  position: fixed;
+  z-index: calc(var(--z-bar) + 1);
+  top: calc(env(safe-area-inset-top) + var(--space-8));
+  left: 50%;
+  width: var(--space-32);
+  height: var(--space-32);
+  margin-left: calc(var(--space-16) * -1);
+  display: grid;
+  place-items: center;
+  color: var(--color-label-secondary);
+  pointer-events: none;
+}
+.ui-pull-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.ui-pull circle {
+  fill: none;
+  stroke-width: calc(var(--icon-stroke) * 1.5);
+}
+.ui-pull-track {
+  stroke: currentColor;
+  opacity: 0.2;
+}
+.ui-pull-arc {
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+.ui-pull[data-refreshing] .ui-pull-ring {
+  animation: ui-spin var(--motion-spinner-ms) linear infinite;
+}
+
+/* Edge-swipe back */
+.ui-edge-swipe {
+  display: none;
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--space-20);
+  z-index: var(--z-bar);
+  touch-action: none;
+}
+@media (pointer: coarse) {
+  .ui-edge-swipe {
+    display: block;
+  }
+}
+@media (min-width: 900px) {
+  .ui-edge-swipe {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-roll-strip,
+  .ui-swipe-label {
+    transition: none;
+  }
+  .ui-swipe-action[data-armed] .ui-swipe-label {
+    transform: none;
   }
 }

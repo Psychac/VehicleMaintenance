@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { IconFuel, IconPlus, IconWrench } from '../components/icons';
+import { IconFuel, IconPlus, IconTrash, IconWrench } from '../components/icons';
 import { averageEfficiency, fuelEfficiency } from '../lib/calc';
 import { fmtDec, fmtKm, fmtMoney, fmtRelDate } from '../lib/format';
 import { SERVICE_CATEGORIES, type FuelLog, type ServiceLog } from '../lib/types';
-import { Button, EmptyState, ListGroup, Row, ScreenHeader, Segmented, SelectField, SkeletonRows } from '../ui';
+import { Button, EmptyState, Fade, ListGroup, Row, ScreenHeader, Segmented, SelectField, SkeletonRows, useToast } from '../ui';
 import FuelSheet from './FuelSheet';
 import ServiceSheet from './ServiceSheet';
-import { odometerOf, type Editing, type VehicleScope } from './shared';
+import { deleteWithUndo, odometerOf, type Editing, type VehicleScope } from './shared';
 import { useShell } from './shell';
 
 type Kind = 'fuel' | 'service';
@@ -26,6 +26,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /** One history for everything you've logged. Fuel and service share a screen and a segmented switch. */
 export default function Log({ scope, loading, reload }: { scope: VehicleScope; loading: boolean; reload: () => Promise<void> }) {
   const shell = useShell();
+  const toast = useToast();
   const { vehicle, fuel, service, reminders } = scope;
   const [kind, setKindState] = useState<Kind>(remembered);
   const [fuelEdit, setFuelEdit] = useState<Editing<FuelLog>>(null);
@@ -46,6 +47,10 @@ export default function Log({ scope, loading, reload }: { scope: VehicleScope; l
   const avg = averageEfficiency(fuelRows);
   const serviceRows = service.filter((s) => category === 'all' || s.category === category).sort((a, b) => b.date.localeCompare(a.date));
   const addLabel = kind === 'fuel' ? 'Add fill-up' : 'Add service';
+  const trash = <IconTrash size={18} />;
+
+  const removeFuel = (r: FuelLog) => deleteWithUndo('fuel_logs', r, 'Fill-up deleted', toast, reload);
+  const removeService = (r: ServiceLog) => deleteWithUndo('service_logs', r, 'Entry deleted', toast, reload);
 
   return (
     <>
@@ -62,85 +67,96 @@ export default function Log({ scope, loading, reload }: { scope: VehicleScope; l
           ]}
         />
 
-        {loading ? (
-          <ListGroup label="Loading">
-            <SkeletonRows count={6} />
-          </ListGroup>
-        ) : kind === 'fuel' ? (
-          fuelRows.length === 0 ? (
-            <EmptyState
-              icon={<IconFuel size={56} />}
-              title="No fill-ups yet"
-              message="Add one to see your mileage."
-              action={{ label: 'Add fill-up', icon: <IconPlus size={18} />, onPress: () => setFuelEdit('new') }}
-            />
-          ) : (
-            <ListGroup
-              header={[plural(fuelRows.length, 'fill-up', 'fill-ups'), avg ? `${fmtDec(avg)} km/L average` : null, fmtMoney(fuelRows.reduce((t, r) => t + Number(r.total_cost), 0))]
-                .filter(Boolean)
-                .join(' · ')}
-            >
-              {fuelRows.map((r) => (
-                <Row
-                  key={r.id}
-                  title={fmtRelDate(r.date)}
-                  subtitle={[
-                    !r.full_tank ? 'Partial' : null,
-                    `${fmtDec(Number(r.litres))} L`,
-                    r.efficiency !== null ? `${fmtDec(r.efficiency)} km/L` : null,
-                    fmtKm(Number(r.odometer)),
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                  value={fmtMoney(Number(r.total_cost))}
-                  onPress={() => setFuelEdit(r)}
-                />
-              ))}
+        <Fade id={loading ? 'loading' : kind}>
+          {loading ? (
+            <ListGroup label="Loading">
+              <SkeletonRows count={6} />
             </ListGroup>
-          )
-        ) : (
-          <>
-            {service.length > 0 && (
-              <SelectField label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="all">All categories</option>
-                {SERVICE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {cap(c)}
-                  </option>
-                ))}
-              </SelectField>
-            )}
-            {service.length === 0 ? (
+          ) : kind === 'fuel' ? (
+            fuelRows.length === 0 ? (
               <EmptyState
-                icon={<IconWrench size={56} />}
-                title="No services yet"
-                message="Log services, repairs, tyres and insurance."
-                action={{ label: 'Add service', icon: <IconPlus size={18} />, onPress: () => setServiceEdit('new') }}
-              />
-            ) : serviceRows.length === 0 ? (
-              <EmptyState
-                variant="filtered"
-                title={`No ${category} entries`}
-                message="Try another category."
-                action={{ label: 'Show all', onPress: () => setCategory('all') }}
+                icon={<IconFuel size={56} />}
+                title="No fill-ups yet"
+                message="Add one to see your mileage."
+                action={{ label: 'Add fill-up', icon: <IconPlus size={18} />, onPress: () => setFuelEdit('new') }}
               />
             ) : (
               <ListGroup
-                header={`${plural(serviceRows.length, 'entry', 'entries')} · ${fmtMoney(serviceRows.reduce((t, r) => t + Number(r.cost), 0))}`}
+                live
+                header={[plural(fuelRows.length, 'fill-up', 'fill-ups'), avg ? `${fmtDec(avg)} km/L average` : null, fmtMoney(fuelRows.reduce((t, r) => t + Number(r.total_cost), 0))]
+                  .filter(Boolean)
+                  .join(' · ')}
               >
-                {serviceRows.map((s) => (
+                {fuelRows.map((r) => (
                   <Row
-                    key={s.id}
-                    title={s.title}
-                    subtitle={[fmtRelDate(s.date), cap(s.category), s.vendor].filter(Boolean).join(' · ')}
-                    value={fmtMoney(Number(s.cost))}
-                    onPress={() => setServiceEdit(s)}
+                    key={r.id}
+                    title={fmtRelDate(r.date)}
+                    subtitle={[
+                      !r.full_tank ? 'Partial' : null,
+                      `${fmtDec(Number(r.litres))} L`,
+                      r.efficiency !== null ? `${fmtDec(r.efficiency)} km/L` : null,
+                      fmtKm(Number(r.odometer)),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    value={fmtMoney(Number(r.total_cost))}
+                    onPress={() => setFuelEdit(r)}
+                    menu={[
+                      { label: 'Edit', onSelect: () => setFuelEdit(r) },
+                      { label: 'Delete', destructive: true, onSelect: () => void removeFuel(r) },
+                    ]}
+                    swipe={{ trailing: { label: 'Delete', icon: trash, tone: 'destructive', onCommit: () => removeFuel(r) } }}
                   />
                 ))}
               </ListGroup>
-            )}
-          </>
-        )}
+            )
+          ) : (
+            <>
+              {service.length > 0 && (
+                <SelectField label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+                  <option value="all">All categories</option>
+                  {SERVICE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {cap(c)}
+                    </option>
+                  ))}
+                </SelectField>
+              )}
+              {service.length === 0 ? (
+                <EmptyState
+                  icon={<IconWrench size={56} />}
+                  title="No services yet"
+                  message="Log services, repairs, tyres and insurance."
+                  action={{ label: 'Add service', icon: <IconPlus size={18} />, onPress: () => setServiceEdit('new') }}
+                />
+              ) : serviceRows.length === 0 ? (
+                <EmptyState
+                  variant="filtered"
+                  title={`No ${category} entries`}
+                  message="Try another category."
+                  action={{ label: 'Show all', onPress: () => setCategory('all') }}
+                />
+              ) : (
+                <ListGroup live header={`${plural(serviceRows.length, 'entry', 'entries')} · ${fmtMoney(serviceRows.reduce((t, r) => t + Number(r.cost), 0))}`}>
+                  {serviceRows.map((s) => (
+                    <Row
+                      key={s.id}
+                      title={s.title}
+                      subtitle={[fmtRelDate(s.date), cap(s.category), s.vendor].filter(Boolean).join(' · ')}
+                      value={fmtMoney(Number(s.cost))}
+                      onPress={() => setServiceEdit(s)}
+                      menu={[
+                        { label: 'Edit', onSelect: () => setServiceEdit(s) },
+                        { label: 'Delete', destructive: true, onSelect: () => void removeService(s) },
+                      ]}
+                      swipe={{ trailing: { label: 'Delete', icon: trash, tone: 'destructive', onCommit: () => removeService(s) } }}
+                    />
+                  ))}
+                </ListGroup>
+              )}
+            </>
+          )}
+        </Fade>
 
         <div className="action-bar">
           <Button size="large" icon={<IconPlus size={18} />} disabled={loading} onClick={() => (kind === 'fuel' ? setFuelEdit('new') : setServiceEdit('new'))}>

@@ -11,6 +11,7 @@ import Log from './screens/Log';
 import { Account, Backup, More, Storage, Vehicles } from './screens/More';
 import Reminders from './screens/Reminders';
 import Reports from './screens/Reports';
+import { ScreenTransition, type TransitionKind } from './screens/ScreenTransition';
 import StorageSettings from './screens/StorageSettings';
 import VehiclePicker from './screens/VehiclePicker';
 import VehicleSheet from './screens/VehicleSheet';
@@ -20,10 +21,12 @@ import {
   AppNav,
   Banner,
   Button,
+  CompletionProvider,
   EmptyState,
   IconButton,
   ListGroup,
   MotionConfig,
+  PullToRefresh,
   ScreenHeader,
   Sheet,
   SkeletonRows,
@@ -69,6 +72,16 @@ function parseRoute(): Route {
   return { tab: TABS.includes(last as Tab) ? (last as Tab) : 'home' };
 }
 
+/** Tabs crossfade; going deeper pushes; coming back pops. */
+function kindOf(from: Route, to: Route): TransitionKind {
+  if (from.tab !== to.tab) return 'tab';
+  const a = from.sub ? 1 : 0;
+  const b = to.sub ? 1 : 0;
+  if (b > a || (b === a && b === 1 && from.sub !== to.sub)) return 'push';
+  if (b < a) return 'back';
+  return 'tab';
+}
+
 const hashOf = (r: Route) => `#${r.tab}${r.sub ? `/${r.sub}` : ''}`;
 
 function useOnline(): boolean {
@@ -90,7 +103,9 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       <ToastProvider>
-        <Root />
+        <CompletionProvider>
+          <Root />
+        </CompletionProvider>
       </ToastProvider>
     </MotionConfig>
   );
@@ -104,7 +119,9 @@ function Root() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [route, setRoute] = useState<Route>(parseRoute);
+  const [nav, setNav] = useState<{ route: Route; kind: TransitionKind }>(() => ({ route: parseRoute(), kind: 'tab' }));
+  const route = nav.route;
+  const go = useCallback((next: Route) => setNav((prev) => ({ route: next, kind: kindOf(prev.route, next) })), []);
   const [vehicleId, setVehicleId] = useState<string | null>(remembered(VEHICLE_KEY));
   const [picker, setPicker] = useState(false);
   const [vehicleEdit, setVehicleEdit] = useState<Editing<Vehicle>>(null);
@@ -160,18 +177,18 @@ function Root() {
 
   // System back / edge swipe: follow the hash.
   useEffect(() => {
-    const onPop = () => setRoute(parseRoute());
+    const onPop = () => go(parseRoute());
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, []);
+  }, [go]);
 
   const navigate = useCallback((r: Route) => {
     if (r.sub) window.history.pushState({ pushed: true }, '', hashOf(r));
     else window.history.replaceState(null, '', hashOf(r));
     remember(TAB_KEY, r.tab);
-    setRoute(r);
+    go(r);
     window.scrollTo({ top: 0 });
-  }, []);
+  }, [go]);
 
   const back = useCallback(() => {
     if (window.history.state?.pushed) window.history.back();
@@ -337,8 +354,11 @@ function Root() {
               )}
             </div>
           ) : null}
-          {screen}
+          <ScreenTransition routeKey={`${route.tab}/${route.sub ?? ''}`} kind={nav.kind} pushed={!!route.sub} onBack={back}>
+            {screen}
+          </ScreenTransition>
         </div>
+        <PullToRefresh onRefresh={reload} />
 
         <VehiclePicker
           open={picker}
