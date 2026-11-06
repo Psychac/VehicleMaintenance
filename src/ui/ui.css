@@ -678,8 +678,10 @@ button.ui-row:disabled,
 /* ---------------------------------------------------------------- Segmented */
 
 .ui-seg {
-  display: flex;
-  gap: 0;
+  /* Equal-width segments (grid, not content-sized) so the pill can be a pure translateX(index * 100%). */
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
   padding: var(--space-2);
   height: var(--layout-hit);
   box-sizing: border-box;
@@ -691,9 +693,9 @@ button.ui-row:disabled,
   all: unset;
   box-sizing: border-box;
   position: relative;
-  flex: 1;
   display: grid;
   place-items: center;
+  min-width: 0;
   padding-inline: var(--space-12);
   /* Nested radius: inner = outer − padding. */
   border-radius: calc(var(--radius-md) - var(--space-2));
@@ -708,8 +710,12 @@ button.ui-row:disabled,
 }
 .ui-seg-pill {
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  left: var(--space-2);
+  width: calc((100% - var(--space-4)) / var(--n));
+  border-radius: calc(var(--radius-md) - var(--space-2));
+  pointer-events: none;
   background: var(--color-bg-raised);
   box-shadow: var(--shadow-raised);
 }

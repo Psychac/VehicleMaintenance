@@ -1,4 +1,4 @@
-import { useId, useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent } from 'react';
 import { motion } from 'motion/react';
 import { spring } from '../design/tokens';
 import { haptic } from './haptics';
@@ -10,8 +10,8 @@ export interface SegmentOption<T extends string> {
 }
 
 /**
- * The selection pill slides between segments with spring.snappy (shared `layoutId`, so it is
- * interruptible and follows rapid taps) and fires a selection haptic. Arrow keys move selection.
+ * The selection pill slides between segments with spring.snappy (a single transform-only element,
+ * interruptible and following rapid taps) and fires a selection haptic. Arrow keys move selection.
  */
 export function Segmented<T extends string>({
   options,
@@ -24,7 +24,6 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   label: string;
 }) {
-  const group = useId();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const select = (v: T, focusIndex?: number) => {
@@ -44,12 +43,19 @@ export function Segmented<T extends string>({
   };
 
   return (
-    <div className="ui-seg" role="radiogroup" aria-label={label}>
+    <div className="ui-seg" role="radiogroup" aria-label={label} style={{ ['--n' as string]: options.length }}>
+      {/* One pill, moved by transform only. initial={false}: it is already in place on mount, so it can never fly in. */}
+      <motion.span
+        className="ui-seg-pill"
+        aria-hidden="true"
+        initial={false}
+        animate={{ x: `${Math.max(0, options.findIndex((o) => o.value === value)) * 100}%` }}
+        transition={spring.snappy}
+      />
       {options.map((o, i) => (
         <Segment
           key={o.value}
           active={o.value === value}
-          pillId={group}
           label={o.label}
           buttonRef={(el) => (refs.current[i] = el)}
           onSelect={() => select(o.value)}
@@ -62,14 +68,12 @@ export function Segmented<T extends string>({
 
 function Segment({
   active,
-  pillId,
   label,
   buttonRef,
   onSelect,
   onKeyDown,
 }: {
   active: boolean;
-  pillId: string;
   label: string;
   buttonRef: (el: HTMLButtonElement | null) => void;
   onSelect: () => void;
@@ -89,7 +93,6 @@ function Segment({
       onClick={onSelect}
       onKeyDown={onKeyDown}
     >
-      {active && <motion.span layoutId={`seg-${pillId}`} className="ui-seg-pill" transition={spring.snappy} />}
       <span className="ui-seg-label">{label}</span>
     </button>
   );
