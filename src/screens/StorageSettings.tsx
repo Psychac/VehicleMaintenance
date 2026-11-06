@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { loadConfig, saveConfig, type BackendKind } from '../lib/config';
 import { discardPendingCopy, isLocalMode, stashDataForSwitch } from '../lib/db';
 import { Banner, Button, SelectField, Segmented, TextField, Toggle } from '../ui';
@@ -29,6 +28,7 @@ export default function StorageSettings() {
     setBusy(true);
     setMsg(null);
     if (backend === 'supabase') {
+      const { createClient } = await import('@supabase/supabase-js');
       const client = createClient(supabaseUrl, supabaseKey);
       try {
         // A missing table or column errors; a reachable project with RLS just returns no rows.

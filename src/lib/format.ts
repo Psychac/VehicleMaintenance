@@ -1,13 +1,18 @@
 const currency = (import.meta.env.VITE_CURRENCY as string | undefined) || 'INR';
 
-const money = new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 });
-const num = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
-const dec = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+/** Created on first use: building Intl formatters is not free, and none are needed before the first render. */
+const once = <T>(make: () => T) => {
+  let value: T | undefined;
+  return () => (value ??= make());
+};
+const money = once(() => new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }));
+const num = once(() => new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }));
+const dec = once(() => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }));
 
-export const fmtMoney = (v: number) => money.format(v);
-export const fmtKm = (v: number) => `${num.format(v)} km`;
-export const fmtNum = (v: number) => num.format(v);
-export const fmtDec = (v: number) => dec.format(v);
+export const fmtMoney = (v: number) => money().format(v);
+export const fmtKm = (v: number) => `${num().format(v)} km`;
+export const fmtNum = (v: number) => num().format(v);
+export const fmtDec = (v: number) => dec().format(v);
 
 export function fmtDate(iso: string | null | undefined) {
   if (!iso) return '—';

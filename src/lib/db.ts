@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadConfig } from './config';
 import { callSqlite } from './sqlite/client';
 import { planMerge, type ConflictStrategy, type MergeReport } from './merge';
@@ -10,12 +10,18 @@ type NewRow<T extends TableName> = Omit<Row<T>, 'id'> & { id?: string };
 const config = loadConfig();
 const useSupabase = config.backend === 'supabase' && !!config.supabaseUrl && !!config.supabaseKey;
 
-/** Null when the app is using on-device SQLite. */
-export const supabase: SupabaseClient | null = useSupabase
-  ? createClient(config.supabaseUrl, config.supabaseKey)
-  : null;
-/** True when data lives in the on-device SQLite database (no account, no server). */
-export const isLocalMode = !supabase;
+/**
+ * Null when the app is using on-device SQLite. In Supabase mode it is set by `initDb()`: the
+ * client library (~100 KB) is only downloaded when it is actually the chosen storage.
+ */
+export let supabase: SupabaseClient | null = null;
+/** True when data lives in the on-device SQLite database (no account, no server). Known synchronously. */
+export const isLocalMode = !useSupabase;
+
+function client(): SupabaseClient {
+  if (!supabase) throw new Error('Storage is not ready yet.');
+  return supabase;
+}
 
 /** Set after initDb() in SQLite mode. `persistent: false` means data is lost on reload. */
 export const storageStatus: { persistent: boolean; reason?: string } = { persistent: true };
@@ -38,11 +44,23 @@ async function migrateLegacyDemoData(): Promise<void> {
   }
 }
 
-/** Must resolve before the first data call in SQLite mode. A no-op for Supabase. */
-export async function initDb(): Promise<void> {
-  if (supabase) return;
-  Object.assign(storageStatus, await callSqlite<typeof storageStatus>('open'));
-  await migrateLegacyDemoData();
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Must resolve before the first data call. Idempotent, so `main.tsx` can start it before React
+ * renders (the SQLite worker and WebAssembly then load in parallel with the UI bundle).
+ */
+export function initDb(): Promise<void> {
+  initPromise ??= (async () => {
+    if (useSupabase) {
+      const { createClient } = await import('@supabase/supabase-js');
+      supabase = createClient(config.supabaseUrl, config.supabaseKey);
+      return;
+    }
+    Object.assign(storageStatus, await callSqlite<typeof storageStatus>('open'));
+    await migrateLegacyDemoData();
+  })();
+  return initPromise;
 }
 
 function fail(error: { message: string } | null) {
@@ -50,16 +68,16 @@ function fail(error: { message: string } | null) {
 }
 
 export async function listAll(): Promise<AllData> {
-  if (!supabase) return callSqlite<AllData>('listAll');
-  const results = await Promise.all(TABLES.map((t) => supabase!.from(t).select('*').order('created_at')));
+  if (isLocalMode) return callSqlite<AllData>('listAll');
+  const results = await Promise.all(TABLES.map((t) => client().from(t).select('*').order('created_at')));
   results.forEach((r) => fail(r.error));
   const [vehicles, fuel_logs, service_logs, reminders] = results.map((r) => r.data ?? []);
   return { vehicles, fuel_logs, service_logs, reminders } as AllData;
 }
 
 export async function insertRow<T extends TableName>(table: T, row: NewRow<T>): Promise<Row<T>> {
-  if (!supabase) return callSqlite<Row<T>>('insert', table, row);
-  const { data, error } = await supabase.from(table).insert(row).select().single();
+  if (isLocalMode) return callSqlite<Row<T>>('insert', table, row);
+  const { data, error } = await client().from(table).insert(row).select().single();
   fail(error);
   return data as Row<T>;
 }
@@ -69,14 +87,14 @@ export async function updateRow<T extends TableName>(
   id: string,
   patch: Partial<Row<T>>
 ): Promise<void> {
-  if (!supabase) return callSqlite('update', table, id, patch);
-  const { error } = await supabase.from(table).update(patch).eq('id', id);
+  if (isLocalMode) return callSqlite('update', table, id, patch);
+  const { error } = await client().from(table).update(patch).eq('id', id);
   fail(error);
 }
 
 export async function deleteRow(table: TableName, id: string): Promise<void> {
-  if (!supabase) return callSqlite('remove', table, id);
-  const { error } = await supabase.from(table).delete().eq('id', id);
+  if (isLocalMode) return callSqlite('remove', table, id);
+  const { error } = await client().from(table).delete().eq('id', id);
   fail(error);
 }
 
@@ -90,10 +108,10 @@ export async function restoreAll(data: AllData): Promise<void> {
       return rest;
     });
   }
-  if (!supabase) return callSqlite('restore', rows);
+  if (isLocalMode) return callSqlite('restore', rows);
   for (const table of TABLES) {
     if (!rows[table].length) continue;
-    const { error } = await supabase.from(table).upsert(rows[table]);
+    const { error } = await client().from(table).upsert(rows[table]);
     fail(error);
   }
 }

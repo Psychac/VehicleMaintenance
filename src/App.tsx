@@ -1,18 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { IconBell, IconCar, IconChevronDown, IconHome, IconList, IconMore } from './components/icons';
 import { currentOdometer, reminderStatus } from './lib/calc';
 import { today } from './lib/format';
 import { applyPendingCopy, initDb, isLocalMode, listAll, storageStatus, supabase } from './lib/db';
+import { loadSnapshot, saveSnapshot } from './lib/snapshot';
 import type { AllData, Vehicle } from './lib/types';
-import Auth from './screens/Auth';
 import Home from './screens/Home';
 import Log from './screens/Log';
-import { Account, Backup, More, Storage, Vehicles } from './screens/More';
 import Reminders from './screens/Reminders';
-import Reports from './screens/Reports';
 import { ScreenTransition, type TransitionKind } from './screens/ScreenTransition';
-import StorageSettings from './screens/StorageSettings';
 import VehiclePicker from './screens/VehiclePicker';
 import VehicleSheet from './screens/VehicleSheet';
 import { ShellProvider, type Route, type Sub, type Tab } from './screens/shell';
@@ -25,6 +22,7 @@ import {
   EmptyState,
   IconButton,
   ListGroup,
+  LazyMotion,
   MotionConfig,
   PullToRefresh,
   ScreenHeader,
@@ -34,6 +32,21 @@ import {
   useDelayedFlag,
   type NavItem,
 } from './ui';
+
+// Rarely used screens load on demand (and are prefetched when the browser is idle, below), so the
+// first screen's bundle stays small.
+const Auth = lazy(() => import('./screens/Auth'));
+const Reports = lazy(() => import('./screens/Reports'));
+const StorageSettings = lazy(() => import('./screens/StorageSettings'));
+const moreScreen = <K extends 'More' | 'Vehicles' | 'Backup' | 'Storage' | 'Account'>(k: K) =>
+  lazy(() => import('./screens/More').then((m) => ({ default: m[k] as never })));
+const More = moreScreen('More') as unknown as React.ComponentType<{ data: AllData }>;
+const Vehicles = moreScreen('Vehicles') as unknown as React.ComponentType<{ vehicles: Vehicle[] }>;
+const Backup = moreScreen('Backup') as unknown as React.ComponentType<{ data: AllData; reload: () => Promise<void> }>;
+const Storage = moreScreen('Storage') as unknown as React.ComponentType;
+const Account = moreScreen('Account') as unknown as React.ComponentType;
+
+const loadMotionFeatures = () => import('./ui/motionFeatures').then((r) => r.default);
 
 const EMPTY: AllData = { vehicles: [], fuel_logs: [], service_logs: [], reminders: [] };
 const VEHICLE_KEY = 'vehicle-log:selected';
@@ -102,11 +115,13 @@ function useOnline(): boolean {
 export default function App() {
   return (
     <MotionConfig reducedMotion="user">
-      <ToastProvider>
-        <CompletionProvider>
-          <Root />
-        </CompletionProvider>
-      </ToastProvider>
+      <LazyMotion features={loadMotionFeatures} strict>
+        <ToastProvider>
+          <CompletionProvider>
+            <Root />
+          </CompletionProvider>
+        </ToastProvider>
+      </LazyMotion>
     </MotionConfig>
   );
 }
@@ -115,8 +130,10 @@ function Root() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(isLocalMode);
   const [initError, setInitError] = useState<string | null>(null);
-  const [data, setData] = useState<AllData>(EMPTY);
-  const [loading, setLoading] = useState(true);
+  // On-device mode paints the last known data on the first frame; the real read replaces it.
+  const [snapshot] = useState(() => (isLocalMode ? loadSnapshot() : null));
+  const [data, setData] = useState<AllData>(snapshot ?? EMPTY);
+  const [loading, setLoading] = useState(!snapshot);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [nav, setNav] = useState<{ route: Route; kind: TransitionKind }>(() => ({ route: parseRoute(), kind: 'tab' }));
@@ -128,30 +145,31 @@ function Root() {
   const [storageSheet, setStorageSheet] = useState(false);
   const online = useOnline();
 
-  // SQLite mode: open the on-device database before anything reads from it.
-  const [dbReady, setDbReady] = useState(!isLocalMode);
+  // Open storage before anything reads from it (started early from main.tsx; this just awaits it).
+  const [dbReady, setDbReady] = useState(false);
   useEffect(() => {
-    if (!isLocalMode) return;
     initDb()
       .then(() => setDbReady(true))
       .catch((e) => setInitError((e as Error).message));
   }, []);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (isLocalMode || !dbReady || !supabase) return;
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setAuthReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [dbReady]);
 
-  const signedIn = isLocalMode ? dbReady : !!session;
+  const signedIn = isLocalMode ? dbReady || !!snapshot : !!session;
 
   const reload = useCallback(async () => {
     try {
-      setData(await listAll());
+      const fresh = await listAll();
+      setData(fresh);
+      if (isLocalMode) saveSnapshot(fresh);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -161,19 +179,32 @@ function Root() {
   }, []);
 
   useEffect(() => {
-    if (!signedIn) return;
+    if (!signedIn || !dbReady) return;
     // Import data parked by Storage "copy my data" before the first read.
     applyPendingCopy()
       .then((msg) => msg && setNotice(msg))
       .finally(reload);
-  }, [signedIn, reload]);
+  }, [signedIn, dbReady, reload]);
+
+  // Fetch the on-demand screens once the first screen is up and the browser is idle.
+  useEffect(() => {
+    if (!signedIn) return;
+    const run = () => {
+      void import('./screens/Reports');
+      void import('./screens/More');
+      void import('./screens/StorageSettings');
+    };
+    const idle = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    const id = idle ? idle(run) : window.setTimeout(run, 1500);
+    return () => (idle ? undefined : window.clearTimeout(id));
+  }, [signedIn]);
 
   // Refresh when returning to the app so edits made on another device show up.
   useEffect(() => {
-    const onVisible = () => document.visibilityState === 'visible' && signedIn && reload();
+    const onVisible = () => document.visibilityState === 'visible' && signedIn && dbReady && reload();
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [signedIn, reload]);
+  }, [signedIn, dbReady, reload]);
 
   // System back / edge swipe: follow the hash.
   useEffect(() => {
@@ -220,7 +251,7 @@ function Root() {
     ? scope.reminders.filter((r) => reminderStatus(r, currentOdometer(scope.vehicle, scope.fuel, scope.service), today()).state === 'overdue').length
     : 0;
 
-  const booting = !authReady || (isLocalMode && !dbReady && !initError);
+  const booting = !authReady || (isLocalMode && !dbReady && !snapshot && !initError);
   const showBootSkeleton = useDelayedFlag(booting);
 
   /* ---------------------------------------------------------- pre-app states */
@@ -245,7 +276,9 @@ function Root() {
           </div>
         </div>
         <Sheet open={storageSheet} onClose={() => setStorageSheet(false)} title="Storage">
-          <StorageSettings />
+          <Suspense fallback={null}>
+            <StorageSettings />
+          </Suspense>
         </Sheet>
       </main>
     );
@@ -261,7 +294,12 @@ function Root() {
       <div className="boot" aria-busy="true" />
     );
 
-  if (!signedIn) return <Auth />;
+  if (!signedIn)
+    return (
+      <Suspense fallback={null}>
+        <Auth />
+      </Suspense>
+    );
 
   /* ---------------------------------------------------------------- shell */
 
@@ -355,7 +393,7 @@ function Root() {
             </div>
           ) : null}
           <ScreenTransition routeKey={`${route.tab}/${route.sub ?? ''}`} kind={nav.kind} pushed={!!route.sub} onBack={back}>
-            {screen}
+            <Suspense fallback={null}>{screen}</Suspense>
           </ScreenTransition>
         </div>
         <PullToRefresh onRefresh={reload} />

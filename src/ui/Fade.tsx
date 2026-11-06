@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { motion } from 'motion/react';
+import { m } from 'motion/react';
 import { fadeMotion } from '../design/tokens';
 
 /**
@@ -9,8 +9,8 @@ import { fadeMotion } from '../design/tokens';
  */
 export function Fade({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <motion.div key={id} className="ui-fade" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fadeMotion.standard}>
+    <m.div key={id} className="ui-fade" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fadeMotion.standard}>
       {children}
-    </motion.div>
+    </m.div>
   );
 }

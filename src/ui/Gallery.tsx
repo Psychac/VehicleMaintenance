@@ -9,6 +9,7 @@ import {
   EmptyState,
   IconButton,
   ListGroup,
+  LazyMotion,
   MotionConfig,
   Row,
   ScreenHeader,
@@ -278,9 +279,11 @@ function Inner() {
 export default function Gallery() {
   return (
     <MotionConfig reducedMotion="user">
-      <ToastProvider>
-        <Inner />
-      </ToastProvider>
+      <LazyMotion features={() => import('./motionFeatures').then((r) => r.default)} strict>
+        <ToastProvider>
+          <Inner />
+        </ToastProvider>
+            </LazyMotion>
     </MotionConfig>
   );
 }

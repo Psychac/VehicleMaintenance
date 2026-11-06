@@ -174,12 +174,47 @@ async function perf(s) {
   const out = {};
   // cold start: navigation → first meaningful content, LCP, CLS
   await s.send('Page.navigate', { url: 'about:blank' }); await sleep(300);
+  if (process.env.PROFILE) { await s.send('Profiler.enable'); await s.send('Profiler.setSamplingInterval', { interval: 400 }); await s.send('Profiler.start'); }
   const t0 = Date.now();
   await s.send('Page.navigate', { url: BASE + '/#home' });
   await waitFor(s.ev, `!!document.querySelector('.hero-value')`, 15000);
   out.coldToContentMs = Date.now() - t0;
+  if (process.env.PROFILE) {
+    const { profile } = (await s.send('Profiler.stop')).result;
+    const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+    const self = new Map();
+    profile.samples.forEach((id, i) => { const n = byId.get(id); const key = (n.callFrame.functionName || '(anon)') + ' ' + (n.callFrame.url.split('/').pop() || '') + ':' + n.callFrame.lineNumber; self.set(key, (self.get(key) || 0) + (profile.timeDeltas[i] || 0)); });
+    // Attribute self time to original sources through the bundle's source map (build with --sourcemap).
+    const { SourceMapConsumer } = await import('source-map-js');
+    const maps = new Map();
+    const detail = new Map();
+    let lastSource = '';
+    const bucketOf = (cf) => {
+      const file = cf.url.split('/').pop() || '';
+      if (!file.endsWith('.js') || !file.startsWith('index-')) return file || '(native/idle)';
+      if (!maps.has(file)) {
+        const p = path.join('dist', 'assets', file + '.map');
+        maps.set(file, fs.existsSync(p) ? new SourceMapConsumer(JSON.parse(fs.readFileSync(p, 'utf8'))) : null);
+      }
+      const m = maps.get(file);
+      if (!m) return file;
+      const o = m.originalPositionFor({ line: cf.lineNumber + 1, column: cf.columnNumber });
+      if (!o.source) return file + ' (unmapped)';
+      const nm = o.source.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/);
+      if (nm) detail.set(nm[1] + ' / ' + o.source.split('/').slice(-2).join('/'), 0);
+      lastSource = o.source.split('/').slice(-2).join('/');
+      return nm ? nm[1] : o.source.replace(/^.*?src\//, 'src/');
+    };
+    const byUrl = new Map();
+    const files = new Map();
+    profile.samples.forEach((id, i) => { const u = bucketOf(byId.get(id).callFrame); byUrl.set(u, (byUrl.get(u) || 0) + (profile.timeDeltas[i] || 0)); if (u === 'motion' || u === 'react-dom') { const k = u + ' / ' + lastSource; files.set(k, (files.get(k) || 0) + (profile.timeDeltas[i] || 0)); } });
+    out.profileFiles = [...files].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([k, t]) => k + ' ' + Math.round(t / 1000) + 'ms');
+    out.profileByUrl = [...byUrl].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, t]) => k + ' ' + Math.round(t / 1000) + 'ms');
+    out.profileTop = [...self].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([k, t]) => Math.round(t / 1000) + 'ms ' + k);
+  }
   await sleep(1500);
   out.lcpMs = Math.round(await s.ev('window.__lcp'));
+  out.cold = JSON.parse(await s.ev(`JSON.stringify((() => { const n = performance.getEntriesByType('navigation')[0]; const fcp = performance.getEntriesByType('paint').find((p) => p.name === 'first-contentful-paint'); return { fcpMs: Math.round(fcp ? fcp.startTime : -1), domInteractiveMs: Math.round(n.domInteractive), loadMs: Math.round(n.loadEventEnd), snapshotBytes: (localStorage.getItem('vehicle-log:snapshot') || '').length }; })())`));
   out.clsLoad = +(await s.ev('window.__cls')).toFixed(4);
 
   // Frame recorder that runs in the page; every tap below is a real touch event.
@@ -190,11 +225,10 @@ async function perf(s) {
   out.perTab = {};
   for (const tab of ['Log', 'Reminders', 'Home', 'More', 'Home', 'Log', 'Reminders', 'More']) {
     await s.ev('window.__rec(true)');
-    const before = await s.ev('location.hash');
-    const t = Date.now();
+    await s.ev(`(() => { window.__t0 = 0; window.__t1 = 0; document.addEventListener('pointerdown', () => { window.__t0 = performance.now(); }, { once: true, capture: true }); const mo = new MutationObserver(() => { if (window.__t0 && !window.__t1) { window.__t1 = performance.now(); mo.disconnect(); } }); mo.observe(document.querySelector('.ui-tabbar'), { attributes: true, attributeFilter: ['data-active'], subtree: true }); })()`);
     await tap(s, tabBtn(tab));
-    await waitFor(s.ev, `location.hash!==${JSON.stringify(before)}`, 3000);
-    out.tapToNavMs.push(Date.now() - t);
+    await sleep(400);
+    out.tapToNavMs.push(Math.round((await s.ev('window.__t1 - window.__t0')) * 10) / 10);
     await sleep(700);
     const d = await s.ev('window.__rec(false)');
     const key = tab + (out.perTab[tab] ? ' (2nd)' : '');
@@ -244,6 +278,7 @@ for (const [name, cfg] of Object.entries(configs)) {
     const emptyAudit = name === 'phone-390-light' ? [await audit(s, 'empty:no-vehicle home')] : [];
     await seed(s);
     report.runs[name] = { empty: emptyAudit, screens: await auditAll(s, name) };
+    report.runs[name].pageErrors = [...new Set(s.errors)].slice(0, 5);
   } catch (e) { report.runs[name] = { error: String(e) }; }
   s.close();
 }

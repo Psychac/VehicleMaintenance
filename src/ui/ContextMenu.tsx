@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m } from 'motion/react';
 import { spring, fadeMotion } from '../design/tokens';
 import { placeMenu, type MenuPlacement } from './gestures';
 import { haptic } from './haptics';
@@ -134,7 +134,7 @@ function MenuPopover({ point, actions, onClose }: { point: { x: number; y: numbe
           onClose();
         }}
       />
-      <motion.div
+      <m.div
         ref={ref}
         className="ui-menu"
         role="menu"
@@ -155,7 +155,7 @@ function MenuPopover({ point, actions, onClose }: { point: { x: number; y: numbe
             }}
           />
         ))}
-      </motion.div>
+      </m.div>
     </>
   );
 }

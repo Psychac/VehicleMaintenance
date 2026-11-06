@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m } from 'motion/react';
 import { motionValues, spring, fadeMotion } from '../design/tokens';
 import { Button } from './Button';
 import { haptic } from './haptics';
@@ -53,7 +53,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div className="ui-toast-region" aria-live="polite" aria-atomic="true">
             <AnimatePresence mode="popLayout">
               {item && (
-                <motion.div
+                <m.div
                   key={item.id}
                   className="ui-toast"
                   data-tone={item.tone ?? 'default'}
@@ -79,7 +79,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                       {item.action.label}
                     </Button>
                   )}
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </div>,

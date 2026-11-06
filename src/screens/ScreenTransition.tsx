@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AnimatePresence, animate, motion, useDragControls, useMotionValue, useReducedMotion, type Variants } from 'motion/react';
+import { AnimatePresence, animate, m, useDragControls, useMotionValue, useReducedMotion, type Variants } from 'motion/react';
 import { motionValues, spring, springs, fadeMotion } from '../design/tokens';
 import { resolveDrag } from '../ui/gestures';
 import { haptic } from '../ui/haptics';
@@ -71,7 +71,7 @@ function Layer({ kind, pushed, onBack, children }: { kind: TransitionKind; pushe
   const reduced = useReducedMotion();
 
   return (
-    <motion.div
+    <m.div
       className="ui-screen-layer"
       custom={kind}
       variants={reduced ? reducedVariants : variants}
@@ -96,6 +96,6 @@ function Layer({ kind, pushed, onBack, children }: { kind: TransitionKind; pushe
     >
       {children}
       {pushed && <div className="ui-edge-swipe" onPointerDown={(e) => controls.start(e)} aria-hidden="true" />}
-    </motion.div>
+    </m.div>
   );
 }

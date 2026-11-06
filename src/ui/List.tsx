@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react';
+import { AnimatePresence, animate, m, useMotionValue, useMotionValueEvent } from 'motion/react';
 import { IconChevronRight } from '../components/icons';
 import { spring, springs, fadeMotion } from '../design/tokens';
 import { useContextMenu, type MenuAction } from './ContextMenu';
@@ -201,7 +201,7 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
           )}
         </div>
       </div>
-      <motion.div
+      <m.div
         className="ui-swipe-content"
         style={{ x }}
         drag="x"
@@ -236,7 +236,7 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
         }}
       >
         {content}
-      </motion.div>
+      </m.div>
     </>
   ) : (
     content
@@ -247,7 +247,7 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
   return (
     <>
       {live ? (
-        <motion.li
+        <m.li
           {...common}
           ref={itemRef}
           data-live
@@ -258,7 +258,7 @@ export function Row({ leading, title, subtitle, value, trailing, onPress, chevro
           transition={{ default: spring.smooth, opacity: fadeMotion.standard }}
         >
           {swiped}
-        </motion.li>
+        </m.li>
       ) : (
         <li {...common} ref={itemRef}>
           {swiped}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { animate, motion, useMotionValue, useTransform } from 'motion/react';
+import { animate, m, useMotionValue, useTransform } from 'motion/react';
 import { springs } from '../design/tokens';
 import { pullDistance } from './gestures';
 import { haptic } from './haptics';
@@ -81,11 +81,11 @@ export function PullToRefresh({ onRefresh }: { onRefresh: () => Promise<void> })
   }, [onRefresh, y]);
 
   return (
-    <motion.div className="ui-pull" style={{ y: travel, opacity: refreshing ? 1 : opacity }} aria-hidden="true" data-refreshing={refreshing || undefined}>
+    <m.div className="ui-pull" style={{ y: travel, opacity: refreshing ? 1 : opacity }} aria-hidden="true" data-refreshing={refreshing || undefined}>
       <svg viewBox="0 0 24 24" className="ui-pull-ring">
         <circle cx="12" cy="12" r="9" className="ui-pull-track" />
-        <motion.circle cx="12" cy="12" r="9" className="ui-pull-arc" style={{ pathLength: refreshing ? 0.28 : progress }} />
+        <m.circle cx="12" cy="12" r="9" className="ui-pull-arc" style={{ pathLength: refreshing ? 0.28 : progress }} />
       </svg>
-    </motion.div>
+    </m.div>
   );
 }

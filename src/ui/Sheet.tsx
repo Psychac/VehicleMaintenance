@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, animate, motion, useDragControls, useMotionValue, usePresence, useTransform } from 'motion/react';
+import { AnimatePresence, animate, m, useDragControls, useMotionValue, usePresence, useTransform } from 'motion/react';
 import { breakpoints, spring, springs, fadeMotion } from '../design/tokens';
 import { Button } from './Button';
 import { haptic } from './haptics';
@@ -200,8 +200,8 @@ function BottomSheet({ onClose, title, action, children, dirty = false, detents 
 
   return (
     <>
-      <motion.div className="ui-scrim" style={{ opacity: scrimOpacity }} onClick={beh.attemptClose} aria-hidden="true" />
-      <motion.div
+      <m.div className="ui-scrim" style={{ opacity: scrimOpacity }} onClick={beh.attemptClose} aria-hidden="true" />
+      <m.div
         ref={panel}
         className="ui-sheet ui-sheet-bottom"
         role="dialog"
@@ -235,7 +235,7 @@ function BottomSheet({ onClose, title, action, children, dirty = false, detents 
         >
           {children}
         </Chrome>
-      </motion.div>
+      </m.div>
     </>
   );
 }
@@ -247,7 +247,7 @@ function Dialog({ onClose, title, action, children, dirty = false, cancelLabel }
 
   return (
     <>
-      <motion.div
+      <m.div
         className="ui-scrim"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -257,7 +257,7 @@ function Dialog({ onClose, title, action, children, dirty = false, cancelLabel }
         aria-hidden="true"
       />
       <div className="ui-dialog-wrap">
-        <motion.div
+        <m.div
           ref={panel}
           className="ui-sheet ui-sheet-dialog"
           role="dialog"
@@ -281,7 +281,7 @@ function Dialog({ onClose, title, action, children, dirty = false, cancelLabel }
           >
             {children}
           </Chrome>
-        </motion.div>
+        </m.div>
       </div>
     </>
   );

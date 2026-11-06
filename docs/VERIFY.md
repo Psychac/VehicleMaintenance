@@ -129,3 +129,37 @@ What changed in this pass: flat rows with hairlines instead of grouped boxes, a 
 Known cost: self-hosted Geist adds ~67 KB (Latin + Latin-extended); the font swaps in after first paint. Preloading the Latin file and code-splitting Reports/Storage are the next performance levers.
 
 Not yet done for the distinctiveness check: the "hide the logo" review on a real phone, and the progress line does not animate when a reminder moves between groups (the row remounts), only when its value changes in place.
+
+---
+
+## Performance pass (code-splitting, cached first paint, early start)
+
+Measured with `scripts/verify-ui.mjs` on the production build, seeded data, real touch taps; tap-to-navigation is now timed **in the page** (pointer-down to the tab state changing), not by the harness. "4x" = CPU throttled 4x, a rough stand-in for a mid-range phone.
+
+**What changed**
+1. **First paint from a cached snapshot.** The last data read is kept in `localStorage` (on-device mode only, skipped above 1.5 MB) and shown on the very first frame; the real read replaces it a moment later. Covered by unit tests.
+2. **Storage opens early.** `initDb()` is idempotent and starts from `main.tsx`, so the SQLite worker and WebAssembly load in parallel with the UI bundle, not after React mounts.
+3. **Supabase loads only when it is the chosen storage** (about 104 KB, its own chunk). `db.ts` no longer builds a client at import time.
+4. **Rarely used screens are separate chunks** (Reports, More and its sub-screens, Auth, Storage settings) and are prefetched when the browser is idle, so they are already there when tapped.
+5. **`motion` split:** components use the lighter `m` + `LazyMotion`; the drag/layout/presence features (52 KB) load asynchronously beside the main bundle.
+6. **Fonts preloaded** (Latin and Latin-extended Geist), so text paints in its final font; number formatters are created on first use.
+
+| Metric (target) | Before | After, 1x | After, 4x |
+|---|---|---|---|
+| Initial JS, min / gzip | 463 KB / 143 KB | **294 KB / 96 KB** | same |
+| Cold start to content (< 1 s) | 0.53-0.90 s | **0.22 s** | 1.0-1.45 s |
+| First contentful paint / LCP (LCP < 2 s) | 0.76-0.96 s | **0.23 s** | 1.29 s |
+| Tap to navigation (< 100 ms) | 62-204 ms (harness-limited) | **25-46 ms** | 87-457 ms |
+| Worst tab-transition frame (no frame > 33 ms) | 50-83 ms | **17 ms** (zero dropped frames) | 67-500 ms |
+| Layout shift (< 0.05) | 0 | **0** | 0 |
+| Scrolling | 60 fps | **60 fps** | 60 fps (one 33 ms frame in one run) |
+| Long tasks | 1-6 | **1** (53 ms) | 17 (worst 476 ms) |
+
+Audit after the change: **no regressions**, 0 contrast / target-size / label / overflow / clipping findings across all five configurations, and **no page errors** in any run.
+
+**Where the remaining 4x time goes** (CPU profile of the cold start, mapped through source maps): about 900 ms of the throttled cold start is JavaScript evaluation, roughly a third `motion`'s module code, a quarter `react-dom`'s first render, the rest our own code. There is no single hot spot left; further gains mean shipping less code up front, for example:
+- render the first screen with plain CSS/React and bring `motion` in after first paint (largest remaining item, but it touches every animated component);
+- precompute the token CSS at build time instead of generating it at startup (about 38 ms at 4x);
+- a service-worker precache so a repeat visit skips the network for the shell.
+
+**Status against Section 11:** passes on a recent device (everything above, "1x"). On the 4x stand-in it still misses cold start (1.0-1.45 s vs 1 s), navigation start (up to 457 ms on the first visit to a screen) and transition smoothness (first visit to Log). That throttle is an approximation; confirming on a real mid-range Android phone is still needed before calling it done.
