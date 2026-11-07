@@ -545,4 +545,8 @@ body {
 /* Opaque, so a screen fading in covers the one leaving instead of blending with the page behind. */
 .ui-screen-layer {
   background: var(--color-bg-grouped);
+  /* At least a full viewport (lvh: the tallest one, with Android's address bar hidden) so the screen
+     held underneath can never show below a shorter entering screen. */
+  min-height: 100dvh;
+  min-height: 100lvh;
 }
