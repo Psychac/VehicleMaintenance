@@ -1384,6 +1384,9 @@ button.ui-row:disabled,
 .ui-fade {
   animation: ui-fade-in var(--fade-standard-ms) var(--ease-fade);
 }
+.ui-fade[data-first] {
+  animation: none;
+}
 
 /* Selected tab icon settles from a slightly smaller size with the snappy spring. */
 @keyframes ui-pop {
