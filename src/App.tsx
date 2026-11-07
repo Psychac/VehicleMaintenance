@@ -214,9 +214,20 @@ function Root() {
 
   // System back / edge swipe: follow the hash.
   useEffect(() => {
-    const onPop = () => go(parseRoute());
+    // Back (button, edge swipe, Android system back) arrives as a popstate. The browser would restore the
+    // old scroll position mid-transition, so the screen animating out jumps. Take over: same as navigate().
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    const onPop = () => {
+      rememberLeaveScroll();
+      go(parseRoute());
+      window.scrollTo({ top: 0 });
+    };
     window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      window.history.scrollRestoration = previous;
+    };
   }, [go]);
 
   const navigate = useCallback((r: Route) => {
