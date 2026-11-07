@@ -19,7 +19,9 @@ export type TransitionKind = 'tab' | 'push' | 'back';
  * Entering takes the longer spring; exits are quick and quiet.
  */
 const variants: Variants = {
-  enter: (k: TransitionKind) => (k === 'push' ? { x: motionValues.enterOffsetLg, opacity: 0 } : k === 'back' ? { x: -motionValues.enterOffsetMd, opacity: 0 } : { opacity: 0 }),
+  // Tab switches are not animated by motion at all (see `.ui-tab-in`): a motion opacity animation that
+  // ends under a held old screen flickers on Android, showing new -> old -> new.
+  enter: (k: TransitionKind) => (k === 'push' ? { x: motionValues.enterOffsetLg, opacity: 0 } : k === 'back' ? { x: -motionValues.enterOffsetMd, opacity: 0 } : { opacity: 1 }),
   center: {
     x: 0,
     opacity: 1,
@@ -37,7 +39,7 @@ const variants: Variants = {
       ? { x: -motionValues.enterOffsetMd, y: -getLeaveScroll(), opacity: 0.999, transition: { x: spring.smooth, y: { duration: 0 }, opacity: { duration: fade.standard.ms / 1000 } } }
       : k === 'back'
         ? { x: '100%', y: -getLeaveScroll(), zIndex: 1, transition: { x: spring.smooth, y: { duration: 0 }, zIndex: { duration: 0 } } }
-        : { opacity: 0.999, transition: { opacity: { duration: fade.standard.ms / 1000 } } },
+        : { opacity: 1, transition: { duration: 0 } },
 };
 
 /** Reduce Motion (S5.6): no slide, no parallax, no drag offset: every change is a plain crossfade. */
@@ -87,7 +89,8 @@ const Layer = forwardRef<HTMLDivElement, { kind: TransitionKind; pushed: boolean
   const reduced = useReducedMotion();
   // While the layer animates: promote it to its own GPU layer up front and swap blurred bars for solid
   // ones (backdrop-filter inside an animating opacity/transform group flickers on phones, then pops).
-  const [busy, setBusy] = useState(true);
+  const tab = kind === 'tab' && !reduced;
+  const [busy, setBusy] = useState(!tab);
   useEffect(() => {
     const t = window.setTimeout(() => setBusy(false), 700); // safety net if no animation event fires
     return () => window.clearTimeout(t);
@@ -96,9 +99,9 @@ const Layer = forwardRef<HTMLDivElement, { kind: TransitionKind; pushed: boolean
   return (
     <m.div
       ref={ref}
-      className="ui-screen-layer"
+      className={tab ? 'ui-screen-layer ui-tab-in' : 'ui-screen-layer'}
       data-busy={busy || undefined}
-      onAnimationStart={() => setBusy(true)}
+      onAnimationStart={() => !tab && setBusy(true)}
       onAnimationComplete={() => setBusy(false)}
       custom={kind}
       variants={reduced ? reducedVariants : variants}

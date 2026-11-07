@@ -550,3 +550,14 @@ body {
   min-height: 100dvh;
   min-height: 100lvh;
 }
+
+/* Tab switch: the old screen is gone at once, the new one eases in from nearly opaque. CSS only, over
+   nothing but the page background, so there is no old screen to flash through when it ends. */
+@keyframes ui-tab-in {
+  from {
+    opacity: 0.86;
+  }
+}
+.ui-tab-in {
+  animation: ui-tab-in var(--fade-standard-ms) var(--ease-fade);
+}
