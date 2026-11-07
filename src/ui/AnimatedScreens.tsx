@@ -4,6 +4,7 @@ import { motionValues, spring, springs, fadeMotion } from '../design/tokens';
 import { resolveDrag } from './gestures';
 import { haptic } from './haptics';
 import { MotionScope } from './MotionScope';
+import { getLeaveScroll } from './leaveScroll';
 
 /** How the route changed: switching tabs, going deeper, or coming back. */
 export type TransitionKind = 'tab' | 'push' | 'back';
@@ -24,19 +25,23 @@ const variants: Variants = {
     opacity: 1,
     transition: { x: spring.smooth, opacity: fadeMotion.standard },
   },
+  // The page scrolls to the top on every navigation; `y` keeps the leaving screen where it was on
+  // screen (set instantly) instead of letting it jump up while it animates out.
+  // Tab switches remove the old screen at once: two whole pages cross-fading on top of each other
+  // read as a glitch, so the new one simply fades in.
   exit: (k: TransitionKind) =>
     k === 'push'
-      ? { x: -motionValues.enterOffsetMd, opacity: 0, transition: { x: spring.smooth, opacity: fadeMotion.exit } }
+      ? { x: -motionValues.enterOffsetMd, y: -getLeaveScroll(), opacity: 0, transition: { x: spring.smooth, y: { duration: 0 }, opacity: fadeMotion.exit } }
       : k === 'back'
-        ? { x: '100%', transition: { x: spring.smooth } }
-        : { opacity: 0, transition: { opacity: fadeMotion.exit } },
+        ? { x: '100%', y: -getLeaveScroll(), transition: { x: spring.smooth, y: { duration: 0 } } }
+        : { opacity: 0, transition: { duration: 0 } },
 };
 
 /** Reduce Motion (S5.6): no slide, no parallax, no drag offset: every change is a plain crossfade. */
 const reducedVariants: Variants = {
   enter: { opacity: 0 },
   center: { opacity: 1, transition: { opacity: { ...fadeMotion.standard, duration: motionValues.reducedFadeMs / 1000 } } },
-  exit: { opacity: 0, transition: { opacity: fadeMotion.exit } },
+  exit: () => ({ opacity: 0, y: -getLeaveScroll(), transition: { y: { duration: 0 }, opacity: fadeMotion.exit } }),
 };
 
 /**

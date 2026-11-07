@@ -10,6 +10,7 @@ import Home from './screens/Home';
 import Log from './screens/Log';
 import Reminders from './screens/Reminders';
 import { ScreenTransition, type TransitionKind } from './screens/ScreenTransition';
+import { rememberLeaveScroll } from './ui/leaveScroll';
 import VehiclePicker from './screens/VehiclePicker';
 import VehicleSheet from './screens/VehicleSheet';
 import { ShellProvider, type Route, type Sub, type Tab } from './screens/shell';
@@ -222,6 +223,7 @@ function Root() {
     if (r.sub) window.history.pushState({ pushed: true }, '', hashOf(r));
     else window.history.replaceState(null, '', hashOf(r));
     remember(TAB_KEY, r.tab);
+    rememberLeaveScroll();
     go(r);
     window.scrollTo({ top: 0 });
   }, [go]);
