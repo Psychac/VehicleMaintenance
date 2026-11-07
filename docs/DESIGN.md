@@ -612,7 +612,7 @@ App: [one-line description]. Stack: [SwiftUI / React Native + Expo / Next.js]. B
 Work in this order and do not skip steps:
 1. Audit: list every screen and state. For each, list violations of DESIGN.md Section 1 and Section 13, including anything that looks generic or like a copy of iOS. Show me the audit before changing code.
 2. Art direction: write the one-page brief from DESIGN.md Section 2 (Identity): personality, outside references, 2–3 signature elements, 1–2 signature moments. Propose 2 distinct directions and wait for me to pick one.
-3. Tokens: create a single tokens file implementing the chosen direction with the structure of Section 3 (type, color with light/dark, spacing, radius, elevation) and Section 5 (spring and timing tokens tuned to the motion personality). No raw values anywhere else.
+3. Tokens: create a single tokens file implementing the chosen direction with the structure of Section 3 (type, color with light/dark, spacing, radius, elevation) and Section 5 (spring and timing tokens tuned to the motion personality). No raw values anywhere else. 
 4. Components: rebuild primitives per Section 7 with every state from Section 6.4, touch-down press feedback, and haptics per Section 6.3, styled to the identity.
 5. Screens: recompose screens from components, highest-traffic first. Add empty/loading/error/offline states per Section 8. Rewrite copy per Section 9. Build the signature moments.
 6. Motion pass: implement transitions from Section 5.4 app-wide so they feel like one system. All interruptible, all springs, Reduce Motion respected.
