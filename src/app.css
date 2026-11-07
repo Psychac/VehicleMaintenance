@@ -533,3 +533,16 @@ body {
     grid-row: 2;
   }
 }
+
+/* A screen layer that is mid-transition: its own GPU layer from the first frame, and solid bars instead
+   of blurred ones (backdrop-filter inside an animating opacity/transform group flickers on phones). */
+.ui-screen-layer[data-busy] {
+  --material-bar: var(--material-bar-solid);
+  --material-filter: none;
+  will-change: transform, opacity;
+}
+
+/* Opaque, so a screen fading in covers the one leaving instead of blending with the page behind. */
+.ui-screen-layer {
+  background: var(--color-bg-grouped);
+}
